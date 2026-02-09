@@ -1,0 +1,29 @@
+# Swift / Vapor
+.build/
+.swiftpm/
+Package.resolved
+*.xcodeproj
+*.xcworkspace
+DerivedData/
+xcuserdata/
+
+# macOS
+.DS_Store
+._*
+
+# Environment
+.env
+*.env
+
+# Node (frontend dev)
+node_modules/
+
+# Vercel
+.vercel/
+
+# Claude
+.claude/
+
+# IDE
+.vscode/
+.idea/

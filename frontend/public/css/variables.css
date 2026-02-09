@@ -1,0 +1,85 @@
+/* Diamond Stats - Design Tokens */
+
+:root {
+    /* Background */
+    --bg-deepest: #0D1117;
+    --bg-base: #161B22;
+    --bg-raised: #1C2128;
+    --bg-surface: #21262D;
+
+    /* Text */
+    --text-primary: #F0F3F6;
+    --text-secondary: #8B949E;
+    --text-muted: #484F58;
+    --text-accent: #58A6FF;
+
+    /* Accent / Interactive */
+    --accent: #58A6FF;
+    --accent-hover: #79C0FF;
+    --accent-active: #388BFD;
+
+    /* Scorebook Colors */
+    --hit: #2EA043;
+    --hit-bg: rgba(46, 160, 67, 0.15);
+    --hr: #DA3633;
+    --hr-bg: rgba(218, 54, 51, 0.15);
+    --walk: #8B949E;
+    --walk-bg: rgba(139, 148, 158, 0.12);
+    --out: #484F58;
+    --out-bg: rgba(72, 79, 88, 0.15);
+    --error-play: #F0883E;
+    --error-bg: rgba(240, 136, 62, 0.15);
+    --strikeout: #F85149;
+    --strikeout-bg: rgba(248, 81, 73, 0.12);
+
+    /* Status */
+    --online: #2EA043;
+    --offline: #DA3633;
+    --warning: #D29922;
+
+    /* Surfaces */
+    --card-bg: rgba(22, 27, 34, 0.85);
+    --card-border: rgba(240, 246, 252, 0.1);
+    --card-hover: rgba(22, 27, 34, 0.95);
+    --input-bg: rgba(13, 17, 23, 0.6);
+    --input-border: rgba(240, 246, 252, 0.15);
+    --input-focus: var(--accent);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+    /* Typography */
+    --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+    --font-size-xs: 0.75rem;   /* 12px */
+    --font-size-sm: 0.8125rem; /* 13px */
+    --font-size-base: 1rem;    /* 16px */
+    --font-size-lg: 1.125rem;  /* 18px */
+    --font-size-xl: 1.5rem;    /* 24px */
+    --font-size-2xl: 2rem;     /* 32px */
+
+    /* Spacing */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+
+    /* Radii */
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-full: 9999px;
+
+    /* Touch targets */
+    --touch-min: 48px;
+
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition-base: 0.25s ease;
+    --transition-slow: 0.4s ease;
+}

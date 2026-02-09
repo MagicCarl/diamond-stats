@@ -45,6 +45,7 @@ export class RosterPage {
                     <div class="btn-group">
                         <a href="#/stats/${this.teamId}" class="btn">Stats</a>
                         <a href="#/games/new?teamId=${this.teamId}" class="btn btn-primary">+ New Game</a>
+                        <button class="btn btn-danger" id="delete-team-btn" title="Delete Team">Delete Team</button>
                     </div>
                 </div>
 
@@ -67,6 +68,8 @@ export class RosterPage {
                     this.showTab(tab.dataset.tab);
                 });
             });
+
+            document.getElementById('delete-team-btn')?.addEventListener('click', () => this.confirmDeleteTeam());
 
             this.showTab('roster');
         } catch (err) {
@@ -107,6 +110,7 @@ export class RosterPage {
                             <th>Bats</th>
                             <th>Throws</th>
                             <th>Pos</th>
+                            <th style="text-align:right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -117,6 +121,10 @@ export class RosterPage {
                                 <td>${p.bats === 'switch' ? 'S' : (p.bats || 'R').charAt(0).toUpperCase()}</td>
                                 <td>${(p.throws || 'R').charAt(0).toUpperCase()}</td>
                                 <td>${this.esc(p.primary_position || '-')}</td>
+                                <td style="text-align:right">
+                                    <button class="btn btn-xs edit-player-btn" data-id="${p.id}">Edit</button>
+                                    <button class="btn btn-xs btn-danger remove-player-btn" data-id="${p.id}" data-name="${this.esc(p.first_name)} ${this.esc(p.last_name)}">Remove</button>
+                                </td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -125,6 +133,17 @@ export class RosterPage {
         `;
 
         document.getElementById('add-player-btn')?.addEventListener('click', () => this.showAddPlayerModal());
+
+        container.querySelectorAll('.edit-player-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const player = this.players.find(p => p.id === btn.dataset.id);
+                if (player) this.showEditPlayerModal(player);
+            });
+        });
+
+        container.querySelectorAll('.remove-player-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.confirmRemovePlayer(btn.dataset.id, btn.dataset.name));
+        });
     }
 
     showAddPlayerModal() {
@@ -223,6 +242,180 @@ export class RosterPage {
                 close();
                 this.app.showToast('Player added!', 'success');
                 await this.loadTeam();
+            } catch (err) {
+                this.app.showToast(err.message, 'error');
+            }
+        });
+    }
+
+    showEditPlayerModal(player) {
+        const modal = document.getElementById('add-player-modal');
+        modal.hidden = false;
+        modal.innerHTML = `
+            <div class="modal-overlay" id="modal-overlay">
+                <div class="modal">
+                    <div class="modal-header">
+                        <h2 class="modal-title">Edit Player</h2>
+                        <button class="modal-close" id="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="edit-player-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">First Name</label>
+                                    <input class="form-input" id="ep-first" required value="${this.esc(player.first_name)}">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Last Name</label>
+                                    <input class="form-input" id="ep-last" required value="${this.esc(player.last_name)}">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">Jersey #</label>
+                                    <input class="form-input" type="number" id="ep-jersey" min="0" max="99" value="${player.jersey_number ?? ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Position</label>
+                                    <select class="form-select" id="ep-position">
+                                        ${['', 'P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH', 'DP', 'UTIL'].map(pos =>
+                                            `<option value="${pos}" ${player.primary_position === pos ? 'selected' : ''}>${pos || '--'}</option>`
+                                        ).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">Bats</label>
+                                    <select class="form-select" id="ep-bats">
+                                        <option value="right" ${player.bats === 'right' ? 'selected' : ''}>Right</option>
+                                        <option value="left" ${player.bats === 'left' ? 'selected' : ''}>Left</option>
+                                        <option value="switch" ${player.bats === 'switch' ? 'selected' : ''}>Switch</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Throws</label>
+                                    <select class="form-select" id="ep-throws">
+                                        <option value="right" ${player.throws === 'right' ? 'selected' : ''}>Right</option>
+                                        <option value="left" ${player.throws === 'left' ? 'selected' : ''}>Left</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" id="modal-cancel">Cancel</button>
+                        <button class="btn btn-primary" id="modal-save">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const close = () => { modal.hidden = true; modal.innerHTML = ''; };
+        document.getElementById('modal-close').addEventListener('click', close);
+        document.getElementById('modal-cancel').addEventListener('click', close);
+        document.getElementById('modal-overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'modal-overlay') close();
+        });
+
+        document.getElementById('modal-save').addEventListener('click', async () => {
+            const data = {
+                firstName: document.getElementById('ep-first').value.trim(),
+                lastName: document.getElementById('ep-last').value.trim(),
+                jerseyNumber: document.getElementById('ep-jersey').value ? parseInt(document.getElementById('ep-jersey').value) : null,
+                primaryPosition: document.getElementById('ep-position').value || null,
+                bats: document.getElementById('ep-bats').value,
+                throwsHand: document.getElementById('ep-throws').value,
+            };
+            if (!data.firstName || !data.lastName) return;
+
+            try {
+                await this.app.api.updatePlayer(this.teamId, player.id, data);
+                close();
+                this.app.showToast('Player updated!', 'success');
+                await this.loadTeam();
+            } catch (err) {
+                this.app.showToast(err.message, 'error');
+            }
+        });
+    }
+
+    confirmRemovePlayer(playerId, playerName) {
+        const modal = document.getElementById('add-player-modal');
+        modal.hidden = false;
+        modal.innerHTML = `
+            <div class="modal-overlay" id="modal-overlay">
+                <div class="modal" style="max-width:400px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title">Remove Player</h2>
+                        <button class="modal-close" id="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Remove <strong>${playerName}</strong> from the roster?</p>
+                        <p style="color:var(--text-secondary); font-size:var(--font-size-sm);">Their stats history will be preserved.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" id="modal-cancel">Cancel</button>
+                        <button class="btn btn-danger" id="modal-confirm">Remove Player</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const close = () => { modal.hidden = true; modal.innerHTML = ''; };
+        document.getElementById('modal-close').addEventListener('click', close);
+        document.getElementById('modal-cancel').addEventListener('click', close);
+        document.getElementById('modal-overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'modal-overlay') close();
+        });
+
+        document.getElementById('modal-confirm').addEventListener('click', async () => {
+            try {
+                await this.app.api.deletePlayer(this.teamId, playerId);
+                close();
+                this.app.showToast('Player removed from roster', 'success');
+                await this.loadTeam();
+            } catch (err) {
+                this.app.showToast(err.message, 'error');
+            }
+        });
+    }
+
+    confirmDeleteTeam() {
+        const modal = document.getElementById('add-player-modal');
+        modal.hidden = false;
+        modal.innerHTML = `
+            <div class="modal-overlay" id="modal-overlay">
+                <div class="modal" style="max-width:400px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title">Delete Team</h2>
+                        <button class="modal-close" id="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Delete <strong>${this.esc(this.team.name)}</strong>?</p>
+                        <p style="color:var(--offline); font-size:var(--font-size-sm);">This will permanently delete the team, all players, games, and stats. This cannot be undone.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" id="modal-cancel">Cancel</button>
+                        <button class="btn btn-danger" id="modal-confirm">Delete Team</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const close = () => { modal.hidden = true; modal.innerHTML = ''; };
+        document.getElementById('modal-close').addEventListener('click', close);
+        document.getElementById('modal-cancel').addEventListener('click', close);
+        document.getElementById('modal-overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'modal-overlay') close();
+        });
+
+        document.getElementById('modal-confirm').addEventListener('click', async () => {
+            try {
+                await this.app.api.deleteTeam(this.teamId);
+                close();
+                this.app.showToast('Team deleted', 'success');
+                window.location.hash = '#/dashboard';
             } catch (err) {
                 this.app.showToast(err.message, 'error');
             }

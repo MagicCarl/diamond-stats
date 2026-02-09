@@ -65,6 +65,13 @@
     font-size: var(--font-size-sm);
 }
 
+.btn-xs {
+    min-height: 28px;
+    padding: 2px var(--space-sm);
+    font-size: var(--font-size-xs);
+    border-radius: var(--radius-sm);
+}
+
 .btn-lg {
     min-height: 56px;
     padding: var(--space-md) var(--space-lg);

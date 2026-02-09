@@ -32,7 +32,10 @@ export class Router {
     }
 
     route() {
-        const hash = window.location.hash.slice(1) || '/';
+        const fullHash = window.location.hash.slice(1) || '/';
+
+        // Strip query string for route matching (pages read query params from window.location.hash)
+        const hash = fullHash.split('?')[0];
 
         // Auth guard
         if (!this.app.auth.isAuthenticated() && hash !== '/login') {

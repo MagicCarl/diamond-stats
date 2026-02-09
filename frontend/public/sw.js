@@ -1,37 +1,12 @@
 // Diamond Stats - Service Worker
 // Cache-first for static assets, network-first for API
 
-const CACHE_NAME = 'diamond-stats-v1';
-const STATIC_ASSETS = [
-    '/',
-    '/index.html',
-    '/manifest.json',
-    '/css/variables.css',
-    '/css/layout.css',
-    '/css/components.css',
-    '/css/scorebook.css',
-    '/js/app.js',
-    '/js/auth.js',
-    '/js/api.js',
-    '/js/router.js',
-    '/js/sync.js',
-    '/js/pages/login.js',
-    '/js/pages/dashboard.js',
-    '/js/pages/teams.js',
-    '/js/pages/roster.js',
-    '/js/pages/game-setup.js',
-    '/js/pages/game-live.js',
-    '/js/pages/boxscore.js',
-    '/js/pages/stats.js',
-];
+const CACHE_NAME = 'diamond-stats-v2';
 
-// Install: cache all static assets
+// Install: pre-cache the app shell
 self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(STATIC_ASSETS);
-        })
-    );
+    // Skip pre-caching to avoid path issues with GitHub Pages
+    // Assets will be cached on first fetch instead
     self.skipWaiting();
 });
 
@@ -47,12 +22,12 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
-// Fetch: cache-first for static, network-first for API
+// Fetch: cache-first for static, network-first for API/Supabase
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // API requests: network-first with no cache fallback
-    if (url.pathname.startsWith('/api') || url.hostname !== self.location.hostname) {
+    // Supabase API requests: network-first
+    if (url.hostname.includes('supabase.co') || url.hostname !== self.location.hostname) {
         event.respondWith(networkFirst(event.request));
         return;
     }
@@ -75,7 +50,8 @@ async function cacheFirst(request) {
     } catch {
         // Offline fallback: return index.html for navigation requests
         if (request.mode === 'navigate') {
-            return caches.match('/index.html');
+            const cached = await caches.match(new Request(self.registration.scope));
+            if (cached) return cached;
         }
         return new Response('Offline', { status: 503 });
     }
@@ -86,7 +62,6 @@ async function networkFirst(request) {
         const response = await fetch(request);
         return response;
     } catch {
-        // API calls that fail offline return a specific error
         return new Response(
             JSON.stringify({ error: 'offline', reason: 'No network connection' }),
             {

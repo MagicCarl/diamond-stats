@@ -31,7 +31,10 @@ export class GameLivePage {
             if (this.lineup.length > 0) {
                 const lastAB = this.atBats[this.atBats.length - 1];
                 if (lastAB) {
-                    const idx = this.lineup.findIndex(l => l.player?.id === lastAB.player?.id || l.$player?.id === lastAB.$player?.id);
+                    const idx = this.lineup.findIndex(l => {
+                        const lineupPlayerId = l.players?.id || l.player_id;
+                        return lineupPlayerId === lastAB.player_id;
+                    });
                     this.currentBatterIndex = idx >= 0 ? (idx + 1) % this.lineup.length : 0;
                 }
             }
@@ -45,8 +48,9 @@ export class GameLivePage {
     renderGame(container) {
         const g = this.game;
         const isLive = g.status === 'in_progress';
-        const halfInning = g.isTopOfInning ? 'Top' : 'Bot';
+        const halfInning = g.is_top_of_inning ? 'Top' : 'Bot';
         const currentBatter = this.lineup[this.currentBatterIndex];
+        const teamName = g.teams?.name || 'US';
 
         container.innerHTML = `
             <div class="game-live">
@@ -54,32 +58,32 @@ export class GameLivePage {
                 <div class="scoreboard">
                     <div class="scoreboard-teams">
                         <div class="scoreboard-team">
-                            <span class="scoreboard-team-name">${g.isHome ? 'AWAY' : this.esc(g.team?.name || 'US')}</span>
-                            <span class="scoreboard-score">${g.isHome ? g.opponentScore : g.ourScore}</span>
+                            <span class="scoreboard-team-name">${g.is_home ? 'AWAY' : this.esc(teamName)}</span>
+                            <span class="scoreboard-score">${g.is_home ? g.opponent_score : g.our_score}</span>
                         </div>
                         <span class="scoreboard-vs">-</span>
                         <div class="scoreboard-team">
-                            <span class="scoreboard-team-name">${g.isHome ? this.esc(g.team?.name || 'US') : 'AWAY'}</span>
-                            <span class="scoreboard-score">${g.isHome ? g.ourScore : g.opponentScore}</span>
+                            <span class="scoreboard-team-name">${g.is_home ? this.esc(teamName) : 'AWAY'}</span>
+                            <span class="scoreboard-score">${g.is_home ? g.our_score : g.opponent_score}</span>
                         </div>
                     </div>
                     <div class="scoreboard-info">
                         <div class="scoreboard-inning">
                             <span class="half">${halfInning}</span>
-                            ${g.currentInning}
+                            ${g.current_inning}
                         </div>
                         <div class="scoreboard-outs">
                             <span style="font-size:var(--font-size-xs);color:var(--text-secondary);margin-right:var(--space-xs);">OUTS</span>
-                            <span class="out-dot ${g.outsInCurrentInning >= 1 ? 'filled' : ''}"></span>
-                            <span class="out-dot ${g.outsInCurrentInning >= 2 ? 'filled' : ''}"></span>
-                            <span class="out-dot ${g.outsInCurrentInning >= 3 ? 'filled' : ''}"></span>
+                            <span class="out-dot ${g.outs_in_current_inning >= 1 ? 'filled' : ''}"></span>
+                            <span class="out-dot ${g.outs_in_current_inning >= 2 ? 'filled' : ''}"></span>
+                            <span class="out-dot ${g.outs_in_current_inning >= 3 ? 'filled' : ''}"></span>
                         </div>
                     </div>
                     <div class="scoreboard-actions">
                         ${!isLive ? `<button class="btn btn-primary btn-sm" id="start-game-btn">Start Game</button>` : ''}
                         ${isLive ? `<button class="btn btn-danger btn-sm" id="end-game-btn">End Game</button>` : ''}
                         <a href="#/games/${this.gameId}/box" class="btn btn-sm">Box Score</a>
-                        <a href="#/teams/${g.team?.id || g.$team?.id}" class="btn btn-sm">Back</a>
+                        <a href="#/teams/${g.team_id}" class="btn btn-sm">Back</a>
                     </div>
                 </div>
 
@@ -89,16 +93,16 @@ export class GameLivePage {
                     ${this.lineup.length === 0
                         ? `<div class="empty-state" style="padding:var(--space-md);"><p>No lineup set</p><button class="btn btn-sm" id="setup-lineup-btn">Set Lineup</button></div>`
                         : this.lineup.map((entry, i) => {
-                            const p = entry.player || {};
+                            const p = entry.players || {};
                             const isActive = i === this.currentBatterIndex && isLive;
                             const playerABs = this.atBats.filter(ab =>
-                                (ab.player?.id || ab.$player?.id) === (p.id || entry.$player?.id)
+                                ab.player_id === (p.id || entry.player_id)
                             );
                             return `
                                 <div class="lineup-item ${isActive ? 'active' : ''}"
                                      data-index="${i}" ${isLive ? 'style="cursor:pointer"' : ''}>
-                                    <span class="lineup-number">${entry.battingOrder}</span>
-                                    <span class="lineup-name">${this.esc(p.firstName || '')} ${this.esc(p.lastName || '')}</span>
+                                    <span class="lineup-number">${entry.batting_order}</span>
+                                    <span class="lineup-name">${this.esc(p.first_name || '')} ${this.esc(p.last_name || '')}</span>
                                     <span class="lineup-position">${this.esc(entry.position)}</span>
                                     <span class="lineup-result-dots">
                                         ${playerABs.map(ab => `<span class="result-dot ${this.resultDotClass(ab.result)}"></span>`).join('')}
@@ -122,11 +126,11 @@ export class GameLivePage {
     }
 
     renderAtBatControls(batter) {
-        const p = batter?.player || {};
+        const p = batter?.players || {};
         return `
             <div class="at-bat-header">
                 <span class="at-bat-batter">
-                    #${p.jerseyNumber || '?'} ${this.esc(p.firstName || '')} ${this.esc(p.lastName || '')}
+                    #${p.jersey_number || '?'} ${this.esc(p.first_name || '')} ${this.esc(p.last_name || '')}
                 </span>
                 <span class="at-bat-batter-info">${this.esc(batter?.position || '')}</span>
             </div>
@@ -224,7 +228,7 @@ export class GameLivePage {
             <div class="empty-state">
                 <div class="empty-state-icon">&#127942;</div>
                 <h2>Game Over</h2>
-                <p>Final: ${this.game.ourScore} - ${this.game.opponentScore}</p>
+                <p>Final: ${this.game.our_score} - ${this.game.opponent_score}</p>
                 <a href="#/games/${this.gameId}/box" class="btn btn-primary">View Box Score</a>
             </div>
         `;
@@ -233,16 +237,16 @@ export class GameLivePage {
     renderPitcherSummary() {
         const current = this.pitching[this.pitching.length - 1];
         if (!current) return '';
-        const p = current.player || {};
+        const p = current.players || {};
         return `
             <div class="pitcher-summary">
                 <div class="pitcher-summary-title">Pitcher</div>
                 <div style="font-weight:600; margin-bottom:var(--space-xs);">
-                    ${this.esc(p.firstName || '')} ${this.esc(p.lastName || '')}
+                    ${this.esc(p.first_name || '')} ${this.esc(p.last_name || '')}
                 </div>
                 <div class="pitcher-stat-row">
                     <span class="pitcher-stat-label">IP</span>
-                    <span>${this.formatIP(current.outsRecorded)}</span>
+                    <span>${this.formatIP(current.outs_recorded)}</span>
                 </div>
                 <div class="pitcher-stat-row">
                     <span class="pitcher-stat-label">K</span>
@@ -254,30 +258,25 @@ export class GameLivePage {
                 </div>
                 <div class="pitcher-stat-row">
                     <span class="pitcher-stat-label">H</span>
-                    <span>${current.hitsAllowed}</span>
+                    <span>${current.hits_allowed}</span>
                 </div>
-                ${current.pitchesThrown != null ? `
+                ${current.pitches_thrown != null ? `
                 <div class="pitcher-stat-row">
                     <span class="pitcher-stat-label">PC</span>
-                    <span>${current.pitchesThrown}</span>
+                    <span>${current.pitches_thrown}</span>
                 </div>` : ''}
             </div>
         `;
     }
 
     bindEvents() {
-        // Start game
         document.getElementById('start-game-btn')?.addEventListener('click', () => this.startGame());
-
-        // End game
         document.getElementById('end-game-btn')?.addEventListener('click', () => this.endGame());
 
-        // Result buttons
         document.querySelectorAll('[data-result]').forEach(btn => {
             btn.addEventListener('click', () => this.recordResult(btn.dataset.result));
         });
 
-        // RBI buttons
         document.querySelectorAll('[data-rbi]').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.selectedRBI = parseInt(btn.dataset.rbi);
@@ -286,7 +285,6 @@ export class GameLivePage {
             });
         });
 
-        // Scored toggle
         document.getElementById('scored-yes')?.addEventListener('click', () => {
             this.selectedScored = true;
             document.getElementById('scored-yes').classList.add('btn-primary');
@@ -298,10 +296,8 @@ export class GameLivePage {
             document.getElementById('scored-yes').classList.remove('btn-primary');
         });
 
-        // Undo
         document.getElementById('undo-btn')?.addEventListener('click', () => this.undoLast());
 
-        // Lineup click to switch batter
         document.querySelectorAll('.lineup-item[data-index]').forEach(item => {
             item.addEventListener('click', () => {
                 this.currentBatterIndex = parseInt(item.dataset.index);
@@ -338,7 +334,7 @@ export class GameLivePage {
             return;
         }
 
-        const playerId = batter.player?.id || batter.$player?.id;
+        const playerId = batter.players?.id || batter.player_id;
         const data = {
             playerId,
             result,
@@ -349,21 +345,14 @@ export class GameLivePage {
         try {
             if (navigator.onLine) {
                 const response = await this.app.api.recordAtBat(this.gameId, data);
-                // Update local state from server response
                 this.atBats.push(response.atBat);
-                this.game.currentInning = response.gameState.currentInning;
-                this.game.isTopOfInning = response.gameState.isTopOfInning;
-                this.game.outsInCurrentInning = response.gameState.outsInCurrentInning;
-                this.game.ourScore = response.gameState.ourScore;
-                this.game.opponentScore = response.gameState.opponentScore;
-                this.game.status = response.gameState.status;
+                this.game = response.gameState;
             } else {
-                // Offline: queue operation
                 await this.app.sync.enqueue('record_at_bat', {
                     gameId: this.gameId,
                     playerId,
-                    inning: this.game.currentInning,
-                    isTop: this.game.isTopOfInning,
+                    inning: this.game.current_inning,
+                    isTop: this.game.is_top_of_inning,
                     result,
                     rbi: this.selectedRBI,
                     runnerScored: this.selectedScored,
@@ -371,7 +360,6 @@ export class GameLivePage {
                 this.app.showToast('At-bat queued (offline)', 'info');
             }
 
-            // Reset extras and advance batter
             this.selectedRBI = 0;
             this.selectedScored = false;
             this.currentBatterIndex = (this.currentBatterIndex + 1) % Math.max(1, this.lineup.length);
@@ -389,15 +377,10 @@ export class GameLivePage {
         if (!confirm('Undo the last at-bat?')) return;
 
         try {
-            const gameState = await this.app.api.undoAtBat(this.gameId, lastAB.id);
+            const updatedGame = await this.app.api.undoAtBat(this.gameId, lastAB.id);
             this.atBats.pop();
-            this.game.currentInning = gameState.currentInning;
-            this.game.isTopOfInning = gameState.isTopOfInning;
-            this.game.outsInCurrentInning = gameState.outsInCurrentInning;
-            this.game.ourScore = gameState.ourScore;
-            this.game.opponentScore = gameState.opponentScore;
+            this.game = updatedGame;
 
-            // Move batter index back
             this.currentBatterIndex = (this.currentBatterIndex - 1 + this.lineup.length) % Math.max(1, this.lineup.length);
 
             this.renderGame(document.getElementById('app'));

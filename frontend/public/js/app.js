@@ -19,7 +19,8 @@ class App {
         // Register Service Worker
         if ('serviceWorker' in navigator) {
             try {
-                await navigator.serviceWorker.register('/sw.js');
+                const swPath = location.pathname.includes('/diamond-stats/') ? '/diamond-stats/sw.js' : '/sw.js';
+                await navigator.serviceWorker.register(swPath);
             } catch (e) {
                 console.warn('SW registration failed:', e);
             }

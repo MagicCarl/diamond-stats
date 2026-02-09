@@ -27,23 +27,23 @@ export class BoxScorePage {
             const data = await this.app.api.boxScore(this.gameId);
             const g = data.game;
 
-            const teamName = g.team?.name || 'Us';
-            const oppName = g.opponentName;
-            const homeName = g.isHome ? teamName : oppName;
-            const awayName = g.isHome ? oppName : teamName;
+            const teamName = g.teams?.name || 'Us';
+            const oppName = g.opponent_name;
+            const homeName = g.is_home ? teamName : oppName;
+            const awayName = g.is_home ? oppName : teamName;
 
             page.innerHTML = `
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">${this.esc(teamName)} vs ${this.esc(oppName)}</h1>
                         <p class="page-subtitle">
-                            ${new Date(g.gameDate).toLocaleDateString()} &middot;
+                            ${new Date(g.game_date).toLocaleDateString()} &middot;
                             <span class="badge badge-status">${g.status}</span>
                         </p>
                     </div>
                     <div class="btn-group">
                         <a href="#/games/${this.gameId}/live" class="btn btn-sm">Live View</a>
-                        <a href="#/teams/${g.team?.id || g.$team?.id}" class="btn btn-sm">Back</a>
+                        <a href="#/teams/${g.team_id}" class="btn btn-sm">Back</a>
                     </div>
                 </div>
 
@@ -63,22 +63,22 @@ export class BoxScorePage {
                             <tr>
                                 <td>${this.esc(awayName)}</td>
                                 ${data.linescore.innings.map(inn => {
-                                    const runs = g.isHome ? inn.opponentRuns : inn.ourRuns;
+                                    const runs = g.is_home ? inn.opponentRuns : inn.ourRuns;
                                     return `<td>${runs}</td>`;
                                 }).join('')}
-                                <td class="total-col">${g.isHome ? data.linescore.opponentTotal.r : data.linescore.ourTotal.r}</td>
-                                <td class="total-col">${g.isHome ? data.linescore.opponentTotal.h : data.linescore.ourTotal.h}</td>
-                                <td class="total-col">${g.isHome ? data.linescore.opponentTotal.e : data.linescore.ourTotal.e}</td>
+                                <td class="total-col">${g.is_home ? data.linescore.opponentTotal.r : data.linescore.ourTotal.r}</td>
+                                <td class="total-col">${g.is_home ? data.linescore.opponentTotal.h : data.linescore.ourTotal.h}</td>
+                                <td class="total-col">${g.is_home ? data.linescore.opponentTotal.e : data.linescore.ourTotal.e}</td>
                             </tr>
                             <tr>
                                 <td>${this.esc(homeName)}</td>
                                 ${data.linescore.innings.map(inn => {
-                                    const runs = g.isHome ? inn.ourRuns : inn.opponentRuns;
+                                    const runs = g.is_home ? inn.ourRuns : inn.opponentRuns;
                                     return `<td>${runs}</td>`;
                                 }).join('')}
-                                <td class="total-col">${g.isHome ? data.linescore.ourTotal.r : data.linescore.opponentTotal.r}</td>
-                                <td class="total-col">${g.isHome ? data.linescore.ourTotal.h : data.linescore.opponentTotal.h}</td>
-                                <td class="total-col">${g.isHome ? data.linescore.ourTotal.e : data.linescore.opponentTotal.e}</td>
+                                <td class="total-col">${g.is_home ? data.linescore.ourTotal.r : data.linescore.opponentTotal.r}</td>
+                                <td class="total-col">${g.is_home ? data.linescore.ourTotal.h : data.linescore.opponentTotal.h}</td>
+                                <td class="total-col">${g.is_home ? data.linescore.ourTotal.e : data.linescore.opponentTotal.e}</td>
                             </tr>
                         </tbody>
                     </table>

@@ -38,7 +38,7 @@ export class RosterPage {
                     <div>
                         <h1 class="page-title">${this.esc(this.team.name)}</h1>
                         <p class="page-subtitle">
-                            ${this.team.sport} &middot; ${this.team.level.replace('_', ' ')} &middot;
+                            ${this.team.sport} &middot; ${(this.team.level || '').replace('_', ' ')} &middot;
                             ${detail.gameCount} games
                         </p>
                     </div>
@@ -112,11 +112,11 @@ export class RosterPage {
                     <tbody>
                         ${this.players.map(p => `
                             <tr>
-                                <td style="text-align:left; font-family:var(--font-mono);">${p.jerseyNumber ?? '-'}</td>
-                                <td style="text-align:left">${this.esc(p.firstName)} ${this.esc(p.lastName)}</td>
-                                <td>${p.bats === 'switch' ? 'S' : p.bats.charAt(0).toUpperCase()}</td>
-                                <td>${p.throwsHand.charAt(0).toUpperCase()}</td>
-                                <td>${this.esc(p.primaryPosition || '-')}</td>
+                                <td style="text-align:left; font-family:var(--font-mono);">${p.jersey_number ?? '-'}</td>
+                                <td style="text-align:left">${this.esc(p.first_name)} ${this.esc(p.last_name)}</td>
+                                <td>${p.bats === 'switch' ? 'S' : (p.bats || 'R').charAt(0).toUpperCase()}</td>
+                                <td>${(p.throws || 'R').charAt(0).toUpperCase()}</td>
+                                <td>${this.esc(p.primary_position || '-')}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -249,11 +249,11 @@ export class RosterPage {
                     <a href="#/games/new?teamId=${this.teamId}" class="btn btn-sm btn-primary">+ New Game</a>
                 </div>
                 ${games.map(g => {
-                    const date = new Date(g.gameDate).toLocaleDateString();
+                    const date = new Date(g.game_date).toLocaleDateString();
                     const statusBadge = g.status === 'in_progress'
                         ? '<span class="badge badge-live">LIVE</span>'
                         : `<span class="badge badge-status">${g.status}</span>`;
-                    const score = g.status === 'scheduled' ? '' : `${g.ourScore} - ${g.opponentScore}`;
+                    const score = g.status === 'scheduled' ? '' : `${g.our_score} - ${g.opponent_score}`;
                     const link = g.status === 'in_progress'
                         ? `#/games/${g.id}/live`
                         : g.status === 'final' ? `#/games/${g.id}/box` : `#/games/${g.id}/live`;
@@ -262,7 +262,7 @@ export class RosterPage {
                         <a href="${link}" class="card card-clickable mb-sm" style="display:block; text-decoration:none; color:inherit;">
                             <div class="flex justify-between items-center">
                                 <div>
-                                    <strong>${g.isHome ? 'vs' : '@'} ${this.esc(g.opponentName)}</strong>
+                                    <strong>${g.is_home ? 'vs' : '@'} ${this.esc(g.opponent_name)}</strong>
                                     <span style="color:var(--text-secondary); margin-left:var(--space-sm);">${date}</span>
                                 </div>
                                 <div class="flex items-center gap-sm">
@@ -289,7 +289,7 @@ export class RosterPage {
                     <div class="card mb-sm">
                         <div class="flex justify-between items-center">
                             <strong>${this.esc(s.name)}</strong>
-                            ${s.isActive ? '<span class="badge badge-hit">Active</span>' : ''}
+                            ${s.is_active ? '<span class="badge badge-hit">Active</span>' : ''}
                         </div>
                     </div>
                 `).join('')

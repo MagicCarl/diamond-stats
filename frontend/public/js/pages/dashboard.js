@@ -63,7 +63,7 @@ export class DashboardPage {
                                 <h3 class="card-title">${this.escapeHtml(team.name)}</h3>
                                 <span class="badge badge-status">${team.sport}</span>
                             </div>
-                            <div class="card-subtitle">${team.level.replace('_', ' ')} &middot; ${team.defaultInnings} innings</div>
+                            <div class="card-subtitle">${(team.level || '').replace('_', ' ')} &middot; ${team.default_innings} innings</div>
                         </div>
                     `).join('')}
                 </div>

@@ -48,7 +48,6 @@ export class TeamsPage {
                         <div class="form-group">
                             <label class="form-label" for="innings">Default Innings Per Game</label>
                             <select class="form-select" id="innings">
-                                <option value="6">6 innings</option>
                                 <option value="7">7 innings</option>
                                 <option value="9" selected>9 innings</option>
                             </select>

@@ -260,7 +260,9 @@ export class API {
 
     async setLineup(gameId, entries) {
         // Delete existing lineup
-        await this.db.from('lineup_entries').delete().eq('game_id', gameId);
+        const { error: delErr } = await this.db.from('lineup_entries').delete().eq('game_id', gameId);
+        if (delErr) throw new Error('Failed to clear lineup: ' + delErr.message);
+
         // Insert new entries
         const rows = entries.map(e => ({
             game_id: gameId,
@@ -273,7 +275,7 @@ export class API {
             .from('lineup_entries')
             .insert(rows)
             .select('*, players(*)');
-        if (error) throw new Error(error.message);
+        if (error) throw new Error('Failed to save lineup: ' + error.message);
         return data;
     }
 
@@ -691,11 +693,12 @@ export class API {
     // ===== Stats Calculation Helpers =====
     calcBattingStats(atBats) {
         let pa = 0, ab = 0, h = 0, doubles = 0, triples = 0, hr = 0;
-        let rbi = 0, bb = 0, k = 0, hbp = 0, sf = 0, sac = 0, sb = 0, cs = 0;
+        let rbi = 0, r = 0, bb = 0, k = 0, hbp = 0, sf = 0, sac = 0, sb = 0, cs = 0;
 
         for (const a of atBats) {
             pa++;
             rbi += a.rbi || 0;
+            if (a.runner_scored) r++;
             sb += a.stolen_bases || 0;
             cs += a.caught_stealing || 0;
 
@@ -729,7 +732,7 @@ export class API {
         const fmtRate = (v) => v != null ? v.toFixed(3).replace(/^0/, '') : '---';
 
         return {
-            pa, ab, h, doubles, triples, hr, rbi, bb, k, hbp, sf, sac, sb, cs, tb,
+            pa, ab, h, doubles, triples, hr, rbi, r, bb, k, hbp, sf, sac, sb, cs, tb,
             avg, obp, slg, ops, iso, babip, kPct, bbPct,
             avgDisplay: fmtRate(avg),
             obpDisplay: fmtRate(obp),

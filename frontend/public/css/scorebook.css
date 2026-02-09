@@ -5,7 +5,7 @@
 .game-live {
     display: grid;
     grid-template-rows: auto 1fr;
-    grid-template-columns: 280px 1fr;
+    grid-template-columns: 260px 1fr;
     gap: 0;
     height: 100dvh;
     overflow: hidden;
@@ -19,27 +19,33 @@
     justify-content: space-between;
     padding: var(--space-sm) var(--space-md);
     background: var(--bg-raised);
-    border-bottom: 1px solid var(--card-border);
-    min-height: 56px;
+    border-bottom: 2px solid var(--card-border);
+    min-height: 64px;
 }
 
 .scoreboard-teams {
     display: flex;
     align-items: center;
-    gap: var(--space-lg);
+    gap: var(--space-md);
 }
 
 .scoreboard-team {
     display: flex;
     flex-direction: column;
     align-items: center;
+    min-width: 80px;
+}
+
+.scoreboard-team.batting .scoreboard-team-name {
+    color: var(--accent);
 }
 
 .scoreboard-team-name {
-    font-size: var(--font-size-sm);
+    font-size: 10px;
     color: var(--text-secondary);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.1em;
+    font-weight: 700;
 }
 
 .scoreboard-score {
@@ -47,29 +53,28 @@
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     font-family: var(--font-mono);
+    line-height: 1;
 }
 
-.scoreboard-vs {
-    font-size: var(--font-size-sm);
-    color: var(--text-muted);
-}
-
-.scoreboard-info {
+.scoreboard-inning-display {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: var(--space-lg);
+    min-width: 40px;
 }
 
-.scoreboard-inning {
-    font-size: var(--font-size-lg);
-    font-weight: 600;
-}
-
-.scoreboard-inning .half {
-    font-size: var(--font-size-xs);
+.inning-half {
+    font-size: 10px;
+    font-weight: 700;
     color: var(--text-secondary);
-    display: block;
-    text-align: center;
+    letter-spacing: 0.1em;
+}
+
+.inning-num {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    font-family: var(--font-mono);
+    line-height: 1;
 }
 
 .scoreboard-outs {
@@ -78,9 +83,17 @@
     align-items: center;
 }
 
+.outs-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    letter-spacing: 0.1em;
+    margin-right: var(--space-xs);
+}
+
 .out-dot {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     border: 2px solid var(--text-muted);
     transition: background var(--transition-fast);
@@ -93,7 +106,8 @@
 
 .scoreboard-actions {
     display: flex;
-    gap: var(--space-sm);
+    gap: var(--space-xs);
+    flex-wrap: wrap;
 }
 
 /* ===== Lineup Panel (left sidebar) ===== */
@@ -102,27 +116,40 @@
     background: var(--bg-base);
     border-right: 1px solid var(--card-border);
     overflow-y: auto;
-    padding: var(--space-sm);
+    padding: 0;
+}
+
+.lineup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--card-border);
+    background: var(--bg-raised);
 }
 
 .lineup-title {
-    font-size: var(--font-size-sm);
-    font-weight: 600;
+    font-size: 10px;
+    font-weight: 700;
     color: var(--text-secondary);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: var(--space-sm);
+    letter-spacing: 0.1em;
+}
+
+.lineup-count {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
 }
 
 .lineup-item {
     display: flex;
     align-items: center;
     gap: var(--space-sm);
-    padding: var(--space-sm) var(--space-sm);
-    border-radius: var(--radius-md);
+    padding: 6px var(--space-sm);
     cursor: pointer;
     transition: background var(--transition-fast);
-    min-height: 44px;
+    min-height: 40px;
+    border-bottom: 1px solid rgba(240, 246, 252, 0.04);
 }
 
 .lineup-item:hover {
@@ -131,69 +158,67 @@
 
 .lineup-item.active {
     background: rgba(88, 166, 255, 0.12);
-    border: 1px solid rgba(88, 166, 255, 0.3);
+    border-left: 3px solid var(--accent);
 }
 
 .lineup-number {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-xs);
     font-weight: 700;
     font-family: var(--font-mono);
     background: var(--bg-surface);
     border-radius: var(--radius-sm);
-    color: var(--text-secondary);
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.lineup-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
 }
 
 .lineup-name {
     font-size: var(--font-size-sm);
     font-weight: 500;
-    flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.lineup-position {
-    font-size: var(--font-size-xs);
+.lineup-stats-line {
+    font-size: 11px;
     color: var(--text-muted);
     font-family: var(--font-mono);
 }
 
-.lineup-result-dots {
-    display: flex;
-    gap: 3px;
+.lineup-position {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    flex-shrink: 0;
 }
-
-.result-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
-
-.result-dot.hit { background: var(--hit); }
-.result-dot.hr { background: var(--hr); }
-.result-dot.walk { background: var(--walk); }
-.result-dot.out { background: var(--out); }
-.result-dot.k { background: var(--strikeout); }
-.result-dot.error { background: var(--error-play); }
 
 /* Pitcher summary in lineup panel */
 .pitcher-summary {
-    margin-top: var(--space-sm);
-    padding: var(--space-sm);
+    margin-top: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
     background: var(--bg-raised);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--card-border);
+    border-top: 1px solid var(--card-border);
 }
 
 .pitcher-summary-title {
-    font-size: var(--font-size-xs);
+    font-size: 10px;
+    font-weight: 700;
     text-transform: uppercase;
     color: var(--text-secondary);
+    letter-spacing: 0.1em;
     margin-bottom: var(--space-xs);
 }
 
@@ -216,62 +241,77 @@
     flex-direction: column;
     padding: var(--space-md);
     overflow-y: auto;
+    gap: var(--space-md);
 }
 
 .at-bat-header {
     display: flex;
     align-items: center;
-    gap: var(--space-md);
-    margin-bottom: var(--space-lg);
-}
-
-.at-bat-batter {
-    font-size: var(--font-size-xl);
-    font-weight: 600;
+    justify-content: space-between;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-raised);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--card-border);
 }
 
 .at-bat-batter-info {
-    font-size: var(--font-size-sm);
+    display: flex;
+    flex-direction: column;
+}
+
+.at-bat-label {
+    font-size: 10px;
+    font-weight: 700;
     color: var(--text-secondary);
+    letter-spacing: 0.1em;
 }
 
-/* Result buttons grid */
-.result-grid {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-md);
-}
-
-.result-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-xs);
-}
-
-.result-section-label {
-    font-size: var(--font-size-xs);
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+.at-bat-batter {
+    font-size: var(--font-size-lg);
     font-weight: 600;
 }
 
-.result-buttons {
+.at-bat-position {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-weight: 600;
+}
+
+/* Result buttons - compact rows */
+.result-grid {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: var(--space-sm);
+}
+
+.result-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.result-section-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    width: 50px;
+    flex-shrink: 0;
 }
 
 .result-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 72px;
-    min-height: var(--touch-min);
-    padding: var(--space-sm) var(--space-md);
+    min-width: 56px;
+    min-height: 44px;
+    padding: var(--space-xs) var(--space-sm);
     font-family: var(--font-mono);
     font-size: var(--font-size-sm);
-    font-weight: 600;
+    font-weight: 700;
     border: 2px solid transparent;
     border-radius: var(--radius-md);
     cursor: pointer;
@@ -300,7 +340,7 @@
 }
 .result-btn.hr:hover { border-color: var(--hr); }
 
-/* Walk buttons - blue/gray */
+/* Walk buttons - blue */
 .result-btn.walk {
     background: rgba(88, 166, 255, 0.1);
     color: var(--accent);
@@ -337,12 +377,12 @@
 .extras-row {
     display: flex;
     align-items: center;
-    gap: var(--space-lg);
-    margin-top: var(--space-md);
-    padding: var(--space-md);
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
     background: var(--bg-raised);
     border-radius: var(--radius-md);
     border: 1px solid var(--card-border);
+    flex-wrap: wrap;
 }
 
 .extras-group {
@@ -352,20 +392,21 @@
 }
 
 .extras-label {
-    font-size: var(--font-size-sm);
-    font-weight: 600;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
     color: var(--text-secondary);
+    text-transform: uppercase;
 }
 
 .rbi-btn {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: var(--font-mono);
-    font-size: var(--font-size-base);
-    font-weight: 600;
+    font-size: var(--font-size-sm);
+    font-weight: 700;
     background: var(--bg-surface);
     border: 2px solid var(--card-border);
     border-radius: var(--radius-md);
@@ -380,10 +421,90 @@
     border-color: var(--accent);
 }
 
-.scored-toggle {
+/* ===== Game Log (scoresheet) ===== */
+
+.game-log {
+    background: var(--bg-base);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.game-log-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    letter-spacing: 0.1em;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-raised);
+    border-bottom: 1px solid var(--card-border);
+}
+
+.game-log-entries {
+    max-height: 240px;
+    overflow-y: auto;
+    padding: var(--space-xs) 0;
+}
+
+.game-log-empty {
+    padding: var(--space-md);
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    text-align: center;
+}
+
+.log-inning-header {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: var(--space-xs) var(--space-md);
+    background: rgba(240, 246, 252, 0.03);
+    border-top: 1px solid var(--card-border);
+    margin-top: var(--space-xs);
+}
+
+.log-inning-header:first-child {
+    margin-top: 0;
+    border-top: none;
+}
+
+.log-entry {
     display: flex;
     align-items: center;
     gap: var(--space-sm);
+    padding: 3px var(--space-md);
+    font-size: var(--font-size-sm);
+}
+
+.log-result-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    border-radius: var(--radius-sm);
+}
+
+.log-result-badge.hit { background: var(--hit-bg); color: var(--hit); }
+.log-result-badge.hr { background: var(--hr-bg); color: var(--hr); }
+.log-result-badge.walk { background: rgba(88, 166, 255, 0.1); color: var(--accent); }
+.log-result-badge.k { background: var(--strikeout-bg); color: var(--strikeout); }
+.log-result-badge.out { background: var(--out-bg); color: var(--text-secondary); }
+.log-result-badge.error { background: var(--error-bg); color: var(--error-play); }
+
+.log-player {
+    font-weight: 500;
+}
+
+.log-extras {
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
 }
 
 /* ===== Action Bar ===== */
@@ -452,11 +573,23 @@
     .lineup-panel {
         border-right: none;
         border-bottom: 1px solid var(--card-border);
-        max-height: 180px;
+        max-height: 160px;
     }
 
     .result-btn {
-        min-width: 60px;
+        min-width: 48px;
         font-size: var(--font-size-xs);
+    }
+
+    .result-section-label {
+        width: 40px;
+    }
+
+    .extras-row {
+        gap: var(--space-sm);
+    }
+
+    .game-log-entries {
+        max-height: 180px;
     }
 }

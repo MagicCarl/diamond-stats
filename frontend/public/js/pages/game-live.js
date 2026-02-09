@@ -82,6 +82,7 @@ export class GameLivePage {
                     <div class="scoreboard-actions">
                         ${!isLive ? `<button class="btn btn-primary btn-sm" id="start-game-btn">Start Game</button>` : ''}
                         ${isLive ? `<button class="btn btn-danger btn-sm" id="end-game-btn">End Game</button>` : ''}
+                        <button class="btn btn-sm" id="edit-lineup-btn">Lineup</button>
                         <a href="#/games/${this.gameId}/box" class="btn btn-sm">Box Score</a>
                         <a href="#/teams/${g.team_id}" class="btn btn-sm">Back</a>
                     </div>
@@ -272,6 +273,8 @@ export class GameLivePage {
     bindEvents() {
         document.getElementById('start-game-btn')?.addEventListener('click', () => this.startGame());
         document.getElementById('end-game-btn')?.addEventListener('click', () => this.endGame());
+        document.getElementById('setup-lineup-btn')?.addEventListener('click', () => this.showLineupSetup());
+        document.getElementById('edit-lineup-btn')?.addEventListener('click', () => this.showLineupSetup());
 
         document.querySelectorAll('[data-result]').forEach(btn => {
             btn.addEventListener('click', () => this.recordResult(btn.dataset.result));
@@ -303,6 +306,144 @@ export class GameLivePage {
                 this.currentBatterIndex = parseInt(item.dataset.index);
                 this.renderGame(document.getElementById('app'));
             });
+        });
+    }
+
+    async showLineupSetup() {
+        // Fetch team players
+        let players;
+        try {
+            players = await this.app.api.listPlayers(this.game.team_id);
+        } catch (err) {
+            this.app.showToast(err.message, 'error');
+            return;
+        }
+
+        if (players.length === 0) {
+            this.app.showToast('No players on the roster. Add players first.', 'error');
+            window.location.hash = `#/teams/${this.game.team_id}`;
+            return;
+        }
+
+        // Build lineup slots from existing lineup or defaults
+        const positions = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'];
+        const existingMap = {};
+        for (const entry of this.lineup) {
+            existingMap[entry.batting_order] = { playerId: entry.player_id, position: entry.position };
+        }
+
+        const slotCount = Math.max(9, players.length);
+        const slots = [];
+        for (let i = 1; i <= slotCount; i++) {
+            slots.push({
+                order: i,
+                playerId: existingMap[i]?.playerId || '',
+                position: existingMap[i]?.position || '',
+            });
+        }
+
+        // Create modal
+        const container = document.getElementById('app');
+        const modalDiv = document.createElement('div');
+        modalDiv.id = 'lineup-modal';
+        modalDiv.innerHTML = `
+            <div class="modal-overlay" id="lineup-overlay">
+                <div class="modal" style="max-width:700px; max-height:90vh;">
+                    <div class="modal-header">
+                        <h2 class="modal-title">Set Batting Lineup</h2>
+                        <button class="modal-close" id="lineup-close">&times;</button>
+                    </div>
+                    <div class="modal-body" style="max-height:60vh; overflow-y:auto;">
+                        <table class="stat-table" style="font-family:var(--font-body);">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:center; width:40px;">#</th>
+                                    <th style="text-align:left;">Player</th>
+                                    <th style="text-align:left; width:100px;">Position</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${slots.map(s => `
+                                    <tr>
+                                        <td style="text-align:center; font-weight:600;">${s.order}</td>
+                                        <td style="text-align:left;">
+                                            <select class="form-select lineup-player-select" data-order="${s.order}" style="min-height:40px;">
+                                                <option value="">-- Select Player --</option>
+                                                ${players.map(p => `
+                                                    <option value="${p.id}" ${s.playerId === p.id ? 'selected' : ''}>
+                                                        #${p.jersey_number ?? '?'} ${p.first_name} ${p.last_name}
+                                                    </option>
+                                                `).join('')}
+                                            </select>
+                                        </td>
+                                        <td style="text-align:left;">
+                                            <select class="form-select lineup-pos-select" data-order="${s.order}" style="min-height:40px;">
+                                                ${positions.map(pos => `
+                                                    <option value="${pos}" ${s.position === pos ? 'selected' : ''}>${pos}</option>
+                                                `).join('')}
+                                            </select>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" id="lineup-cancel">Cancel</button>
+                        <button class="btn btn-primary" id="lineup-save">Save Lineup</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(modalDiv);
+
+        const close = () => modalDiv.remove();
+
+        document.getElementById('lineup-close').addEventListener('click', close);
+        document.getElementById('lineup-cancel').addEventListener('click', close);
+        document.getElementById('lineup-overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'lineup-overlay') close();
+        });
+
+        document.getElementById('lineup-save').addEventListener('click', async () => {
+            const entries = [];
+            const usedPlayers = new Set();
+            const selects = modalDiv.querySelectorAll('.lineup-player-select');
+
+            for (const sel of selects) {
+                const playerId = sel.value;
+                if (!playerId) continue;
+                if (usedPlayers.has(playerId)) {
+                    this.app.showToast('Each player can only appear once in the lineup', 'error');
+                    return;
+                }
+                usedPlayers.add(playerId);
+
+                const order = parseInt(sel.dataset.order);
+                const posSelect = modalDiv.querySelector(`.lineup-pos-select[data-order="${order}"]`);
+                entries.push({
+                    playerId,
+                    battingOrder: order,
+                    position: posSelect.value,
+                    isStarter: true,
+                });
+            }
+
+            if (entries.length === 0) {
+                this.app.showToast('Select at least one player', 'error');
+                return;
+            }
+
+            try {
+                const newLineup = await this.app.api.setLineup(this.gameId, entries);
+                this.lineup = newLineup;
+                this.currentBatterIndex = 0;
+                close();
+                this.app.showToast(`Lineup set (${entries.length} players)`, 'success');
+                this.renderGame(document.getElementById('app'));
+            } catch (err) {
+                this.app.showToast(err.message, 'error');
+            }
         });
     }
 

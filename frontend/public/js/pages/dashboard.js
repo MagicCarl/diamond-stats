@@ -13,6 +13,7 @@ export class DashboardPage {
                 <div class="nav-links">
                     <a href="#/dashboard" class="nav-link active">Dashboard</a>
                     <a href="#/teams" class="nav-link">Teams</a>
+                    <a href="#/help" class="nav-link">Help</a>
                     <button class="btn btn-sm" id="logout-btn">Sign Out</button>
                 </div>
             </nav>

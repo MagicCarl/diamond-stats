@@ -12,6 +12,7 @@ export class BoxScorePage {
                 <a href="#/dashboard" class="logo">Diamond<span>Stats</span></a>
                 <div class="nav-links">
                     <a href="#/dashboard" class="nav-link">Dashboard</a>
+                    <a href="#/help" class="nav-link">Help</a>
                 </div>
             </nav>
             <div class="page" id="boxscore-page">
@@ -71,6 +72,7 @@ export class BoxScorePage {
                     </div>
                     <div class="btn-group">
                         <a href="#/games/${this.gameId}/live" class="btn btn-sm">Live View</a>
+                        <a href="#/games/${this.gameId}/book" class="btn btn-sm">Scorebook</a>
                         <a href="#/teams/${g.team_id}" class="btn btn-sm">Back</a>
                     </div>
                 </div>

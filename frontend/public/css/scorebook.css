@@ -742,3 +742,243 @@ button, a, .lineup-item, .result-btn, .rbi-btn {
 .mb-lg {
     margin-bottom: var(--space-lg);
 }
+
+/* ===== Help Page ===== */
+
+.help-section h2 {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+}
+
+.help-steps {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.help-step {
+    display: flex;
+    gap: var(--space-md);
+    align-items: flex-start;
+}
+
+.help-step-num {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: var(--font-size-sm);
+    font-family: var(--font-mono);
+    margin-top: 2px;
+}
+
+.help-step strong {
+    color: var(--text-primary);
+    display: block;
+    margin-bottom: 4px;
+}
+
+.help-step p {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.help-step ul li {
+    margin-bottom: 2px;
+}
+
+/* ===== Next Button (at-bat confirm) ===== */
+
+.next-btn {
+    min-width: 100px;
+    height: 48px;
+    font-size: 16px;
+    font-weight: 700;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.next-btn:active {
+    transform: scale(0.97);
+}
+
+.next-btn-ready {
+    background: var(--hit);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(63, 185, 80, 0.3);
+}
+
+.next-btn-ready:hover {
+    background: #4cc764;
+}
+
+.next-btn-disabled {
+    background: var(--bg-surface);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+/* Selected result button highlight */
+.result-btn.result-selected {
+    outline: 3px solid var(--text-primary);
+    outline-offset: -1px;
+    transform: scale(1.05);
+    box-shadow: 0 0 12px rgba(240, 243, 246, 0.25);
+}
+
+/* ===== Tooltips for Result Buttons ===== */
+
+.result-btn[data-tooltip] {
+    position: relative;
+}
+
+.result-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-deepest);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--card-border);
+    box-shadow: var(--shadow-md);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 100;
+}
+
+.result-btn[data-tooltip]::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--bg-deepest);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 100;
+}
+
+.result-btn[data-tooltip]:hover::after,
+.result-btn[data-tooltip]:hover::before,
+.result-btn[data-tooltip]:focus::after,
+.result-btn[data-tooltip]:focus::before {
+    opacity: 1;
+}
+
+/* On touch devices, show tooltip on long-press via active state */
+@media (hover: none) {
+    .result-btn[data-tooltip]:active::after,
+    .result-btn[data-tooltip]:active::before {
+        opacity: 1;
+    }
+}
+
+/* ===== Scorebook Sheet View ===== */
+
+.scorebook-sheet {
+    overflow-x: auto;
+    margin-top: var(--space-md);
+}
+
+.scorebook-table {
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    width: 100%;
+    min-width: 600px;
+}
+
+.scorebook-table th,
+.scorebook-table td {
+    border: 1px solid var(--card-border);
+    padding: 4px 6px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.scorebook-table thead th {
+    background: var(--bg-raised);
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.scorebook-table .player-col {
+    text-align: left;
+    min-width: 120px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    position: sticky;
+    left: 0;
+    background: var(--bg-base);
+    z-index: 2;
+}
+
+.scorebook-table thead .player-col {
+    background: var(--bg-raised);
+}
+
+.scorebook-table .inning-cell {
+    min-width: 56px;
+    max-width: 70px;
+    height: 48px;
+    vertical-align: top;
+    padding: 3px;
+    position: relative;
+}
+
+.scorebook-table .inning-cell .ab-result {
+    font-weight: 700;
+    font-size: 12px;
+    display: block;
+}
+
+.scorebook-table .inning-cell .ab-detail {
+    font-size: 9px;
+    color: var(--text-muted);
+    display: block;
+}
+
+.scorebook-table .inning-cell.hit-cell { background: var(--hit-bg); }
+.scorebook-table .inning-cell.hr-cell { background: var(--hr-bg); }
+.scorebook-table .inning-cell.walk-cell { background: var(--walk-bg); }
+.scorebook-table .inning-cell.k-cell { background: var(--strikeout-bg); }
+.scorebook-table .inning-cell.out-cell { background: var(--out-bg); }
+.scorebook-table .inning-cell.error-cell { background: var(--error-bg); }
+
+.scorebook-table .totals-col {
+    font-weight: 700;
+    background: var(--bg-raised);
+    min-width: 32px;
+}
+
+.scorebook-table .ab-result.hit { color: var(--hit); }
+.scorebook-table .ab-result.hr { color: var(--hr); }
+.scorebook-table .ab-result.walk { color: var(--walk); }
+.scorebook-table .ab-result.k { color: var(--strikeout); }
+.scorebook-table .ab-result.out { color: var(--out); }
+.scorebook-table .ab-result.error { color: var(--error-play); }

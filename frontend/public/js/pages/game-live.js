@@ -13,6 +13,7 @@ export class GameLivePage {
         this.selectedRBI = 0;
         this.selectedRunsOnPlay = 0;
         this.batterScored = false;
+        this.selectedResult = null;
     }
 
     async render(container) {
@@ -121,6 +122,7 @@ export class GameLivePage {
                                 <button class="btn btn-danger btn-sm" id="end-game-btn">End Game</button>
                             ` : ''}
                             <a href="#/games/${this.gameId}/box" class="btn btn-sm">Box</a>
+                            <a href="#/games/${this.gameId}/book" class="btn btn-sm">Book</a>
                             <a href="#/teams/${g.team_id}" class="btn btn-sm">Back</a>
                         </div>
                     </div>
@@ -192,33 +194,33 @@ export class GameLivePage {
             <div class="result-grid">
                 <div class="result-row">
                     <span class="result-section-label">HITS</span>
-                    <button class="result-btn hit" data-result="single">1B</button>
-                    <button class="result-btn hit" data-result="double">2B</button>
-                    <button class="result-btn hit" data-result="triple">3B</button>
-                    <button class="result-btn hr" data-result="home_run">HR</button>
+                    <button class="result-btn hit ${this.selectedResult === 'single' ? 'result-selected' : ''}" data-result="single" data-tooltip="Single">1B</button>
+                    <button class="result-btn hit ${this.selectedResult === 'double' ? 'result-selected' : ''}" data-result="double" data-tooltip="Double">2B</button>
+                    <button class="result-btn hit ${this.selectedResult === 'triple' ? 'result-selected' : ''}" data-result="triple" data-tooltip="Triple">3B</button>
+                    <button class="result-btn hr ${this.selectedResult === 'home_run' ? 'result-selected' : ''}" data-result="home_run" data-tooltip="Home Run">HR</button>
                 </div>
                 <div class="result-row">
                     <span class="result-section-label">WALKS</span>
-                    <button class="result-btn walk" data-result="walk">BB</button>
-                    <button class="result-btn walk" data-result="hit_by_pitch">HBP</button>
-                    <button class="result-btn walk" data-result="intentional_walk">IBB</button>
+                    <button class="result-btn walk ${this.selectedResult === 'walk' ? 'result-selected' : ''}" data-result="walk" data-tooltip="Base on Balls (Walk)">BB</button>
+                    <button class="result-btn walk ${this.selectedResult === 'hit_by_pitch' ? 'result-selected' : ''}" data-result="hit_by_pitch" data-tooltip="Hit By Pitch">HBP</button>
+                    <button class="result-btn walk ${this.selectedResult === 'intentional_walk' ? 'result-selected' : ''}" data-result="intentional_walk" data-tooltip="Intentional Walk">IBB</button>
                 </div>
                 <div class="result-row">
                     <span class="result-section-label">OUTS</span>
-                    <button class="result-btn strikeout" data-result="strikeout_swinging">K</button>
-                    <button class="result-btn strikeout" data-result="strikeout_looking">K&#x29C;</button>
-                    <button class="result-btn out" data-result="ground_out">GO</button>
-                    <button class="result-btn out" data-result="fly_out">FO</button>
-                    <button class="result-btn out" data-result="line_out">LO</button>
-                    <button class="result-btn out" data-result="pop_out">PO</button>
+                    <button class="result-btn strikeout ${this.selectedResult === 'strikeout_swinging' ? 'result-selected' : ''}" data-result="strikeout_swinging" data-tooltip="Strikeout Swinging">K</button>
+                    <button class="result-btn strikeout ${this.selectedResult === 'strikeout_looking' ? 'result-selected' : ''}" data-result="strikeout_looking" data-tooltip="Strikeout Looking">K&#x29C;</button>
+                    <button class="result-btn out ${this.selectedResult === 'ground_out' ? 'result-selected' : ''}" data-result="ground_out" data-tooltip="Ground Out">GO</button>
+                    <button class="result-btn out ${this.selectedResult === 'fly_out' ? 'result-selected' : ''}" data-result="fly_out" data-tooltip="Fly Out">FO</button>
+                    <button class="result-btn out ${this.selectedResult === 'line_out' ? 'result-selected' : ''}" data-result="line_out" data-tooltip="Line Out">LO</button>
+                    <button class="result-btn out ${this.selectedResult === 'pop_out' ? 'result-selected' : ''}" data-result="pop_out" data-tooltip="Pop Out">PO</button>
                 </div>
                 <div class="result-row">
                     <span class="result-section-label">OTHER</span>
-                    <button class="result-btn out" data-result="fielders_choice">FC</button>
-                    <button class="result-btn out" data-result="double_play">DP</button>
-                    <button class="result-btn other" data-result="sacrifice_fly">SF</button>
-                    <button class="result-btn other" data-result="sacrifice_bunt">SAC</button>
-                    <button class="result-btn other" data-result="reached_on_error">E</button>
+                    <button class="result-btn out ${this.selectedResult === 'fielders_choice' ? 'result-selected' : ''}" data-result="fielders_choice" data-tooltip="Fielder's Choice">FC</button>
+                    <button class="result-btn out ${this.selectedResult === 'double_play' ? 'result-selected' : ''}" data-result="double_play" data-tooltip="Double Play">DP</button>
+                    <button class="result-btn other ${this.selectedResult === 'sacrifice_fly' ? 'result-selected' : ''}" data-result="sacrifice_fly" data-tooltip="Sacrifice Fly">SF</button>
+                    <button class="result-btn other ${this.selectedResult === 'sacrifice_bunt' ? 'result-selected' : ''}" data-result="sacrifice_bunt" data-tooltip="Sacrifice Bunt">SAC</button>
+                    <button class="result-btn other ${this.selectedResult === 'reached_on_error' ? 'result-selected' : ''}" data-result="reached_on_error" data-tooltip="Reached on Error">E</button>
                 </div>
             </div>
 
@@ -240,8 +242,11 @@ export class GameLivePage {
                     <span class="extras-label">Scored</span>
                     <button class="btn btn-xs ${this.batterScored ? 'btn-primary' : ''}" id="scored-toggle">${this.batterScored ? 'YES' : 'NO'}</button>
                 </div>
-                <button class="btn btn-danger btn-sm" id="undo-btn" ${this.atBats.length === 0 ? 'disabled' : ''}
-                    style="margin-left:auto;">Undo</button>
+                <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+                    <button class="btn btn-danger btn-sm" id="undo-btn" ${this.atBats.length === 0 ? 'disabled' : ''}>Undo</button>
+                    <button class="next-btn ${this.selectedResult ? 'next-btn-ready' : 'next-btn-disabled'}" id="next-btn"
+                        ${!this.selectedResult ? 'disabled' : ''}>Next &#x25B6;</button>
+                </div>
             </div>
 
             <!-- Game Log -->
@@ -252,7 +257,7 @@ export class GameLivePage {
                 </div>
                 <div class="game-log-entries" id="game-log-entries">
                     ${this.atBats.length === 0
-                        ? '<div class="game-log-empty">No at-bats recorded yet. Tap a result button to score.</div>'
+                        ? '<div class="game-log-empty">No at-bats recorded yet. Tap a result, set extras, then tap Next.</div>'
                         : this.renderGameLog()
                     }
                 </div>
@@ -322,7 +327,10 @@ export class GameLivePage {
                 <div style="font-size:var(--font-size-2xl); font-weight:700; font-family:var(--font-mono); margin:16px 0;">
                     ${this.game.our_score} - ${this.game.opponent_score}
                 </div>
-                <a href="#/games/${this.gameId}/box" class="btn btn-primary">View Box Score</a>
+                <div class="btn-group" style="justify-content:center;">
+                    <a href="#/games/${this.gameId}/box" class="btn btn-primary">View Box Score</a>
+                    <a href="#/games/${this.gameId}/book" class="btn">View Scorebook</a>
+                </div>
             </div>
             ${this.atBats.length > 0 ? `
                 <div class="game-log">
@@ -422,9 +430,16 @@ export class GameLivePage {
         $('edit-lineup-btn')?.addEventListener('click', () => this.showLineupSetup());
         $('edit-lineup-btn-main')?.addEventListener('click', () => this.showLineupSetup());
 
-        // Result buttons
+        // Result buttons - select/highlight only (Next button confirms)
         document.querySelectorAll('[data-result]').forEach(btn => {
-            btn.addEventListener('click', () => this.recordResult(btn.dataset.result));
+            btn.addEventListener('click', () => this.selectResult(btn.dataset.result));
+        });
+
+        // Next button - confirms and records the at-bat
+        $('next-btn')?.addEventListener('click', () => {
+            if (this.selectedResult) {
+                this.recordResult(this.selectedResult);
+            }
         });
 
         // Runs on play buttons
@@ -661,11 +676,56 @@ export class GameLivePage {
         }
     }
 
+    selectResult(result) {
+        this.selectedResult = result;
+
+        // Update visual highlight
+        document.querySelectorAll('[data-result]').forEach(b => b.classList.remove('result-selected'));
+        const selected = document.querySelector(`[data-result="${result}"]`);
+        if (selected) selected.classList.add('result-selected');
+
+        // Auto-set HR defaults when selecting home run
+        if (result === 'home_run') {
+            if (this.selectedRunsOnPlay === 0) {
+                this.selectedRunsOnPlay = 1;
+                document.querySelectorAll('[data-runs]').forEach(b => b.classList.remove('selected'));
+                document.querySelector('[data-runs="1"]')?.classList.add('selected');
+            }
+            if (this.selectedRBI === 0) {
+                this.selectedRBI = 1;
+                document.querySelectorAll('.rbi-select').forEach(b => b.classList.remove('selected'));
+                document.querySelector('[data-rbi="1"]')?.classList.add('selected');
+            }
+            if (!this.batterScored) {
+                this.batterScored = true;
+                const scoredBtn = document.getElementById('scored-toggle');
+                if (scoredBtn) {
+                    scoredBtn.textContent = 'YES';
+                    scoredBtn.classList.add('btn-primary');
+                }
+            }
+        }
+
+        // Enable Next button
+        const nextBtn = document.getElementById('next-btn');
+        if (nextBtn) {
+            nextBtn.disabled = false;
+            nextBtn.className = 'next-btn next-btn-ready';
+        }
+    }
+
     async recordResult(result) {
         const batter = this.lineup[this.currentBatterIndex];
         if (!batter) {
             alert('No batter selected. Set your lineup first.');
             return;
+        }
+
+        // Disable Next button to prevent double-tap
+        const nextBtn = document.getElementById('next-btn');
+        if (nextBtn) {
+            nextBtn.disabled = true;
+            nextBtn.textContent = 'Saving...';
         }
 
         const playerId = batter.players?.id || batter.player_id;
@@ -703,15 +763,20 @@ export class GameLivePage {
                 this.app.showToast('At-bat queued (offline)', 'info');
             }
 
-            // Reset extras and advance batter
+            // Reset all selections and advance batter
             this.selectedRBI = 0;
             this.selectedRunsOnPlay = 0;
             this.batterScored = false;
+            this.selectedResult = null;
             this.currentBatterIndex = (this.currentBatterIndex + 1) % Math.max(1, this.lineup.length);
 
             this.renderGame(document.getElementById('app'));
         } catch (err) {
             alert('Error recording at-bat: ' + err.message);
+            if (nextBtn) {
+                nextBtn.disabled = false;
+                nextBtn.textContent = 'Next \u25B6';
+            }
         }
     }
 

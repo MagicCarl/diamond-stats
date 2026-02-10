@@ -16,6 +16,7 @@ export class RosterPage {
                 <div class="nav-links">
                     <a href="#/dashboard" class="nav-link">Dashboard</a>
                     <a href="#/teams" class="nav-link">Teams</a>
+                    <a href="#/help" class="nav-link">Help</a>
                 </div>
             </nav>
             <div class="page" id="roster-page">

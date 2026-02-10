@@ -14,6 +14,7 @@ export class GameSetupPage {
                 <a href="#/dashboard" class="logo">Diamond<span>Stats</span></a>
                 <div class="nav-links">
                     <a href="#/dashboard" class="nav-link">Dashboard</a>
+                    <a href="#/help" class="nav-link">Help</a>
                 </div>
             </nav>
             <div class="page">

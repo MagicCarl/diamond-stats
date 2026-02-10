@@ -8,6 +8,8 @@ import { GameSetupPage } from './pages/game-setup.js';
 import { GameLivePage } from './pages/game-live.js';
 import { BoxScorePage } from './pages/boxscore.js';
 import { StatsPage } from './pages/stats.js';
+import { HelpPage } from './pages/help.js';
+import { ScorebookPage } from './pages/scorebook.js';
 
 export class Router {
     constructor(app) {
@@ -22,7 +24,9 @@ export class Router {
             '/games/new':           GameSetupPage,
             '/games/:gameId/live':  GameLivePage,
             '/games/:gameId/box':   BoxScorePage,
+            '/games/:gameId/book':  ScorebookPage,
             '/stats/:teamId':       StatsPage,
+            '/help':                HelpPage,
         };
     }
 

@@ -1,73 +1,53 @@
 // Diamond Stats - Service Worker
-// Cache-first for static assets, network-first for API
+// Network-first for everything: always get latest code, cache as offline fallback
 
-const CACHE_NAME = 'diamond-stats-v3';
+const CACHE_NAME = 'diamond-stats-v4';
 
-// Install: pre-cache the app shell
+// Install: activate immediately
 self.addEventListener('install', (event) => {
-    // Skip pre-caching to avoid path issues with GitHub Pages
-    // Assets will be cached on first fetch instead
     self.skipWaiting();
 });
 
-// Activate: clean up old caches
+// Activate: claim all clients and clear ALL old caches
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((keys) => {
             return Promise.all(
-                keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+                keys.map((key) => caches.delete(key))
             );
-        })
+        }).then(() => self.clients.claim())
     );
-    self.clients.claim();
 });
 
-// Fetch: cache-first for static, network-first for API/Supabase
+// Fetch: network-first for everything
+// Only falls back to cache when offline (at the ballpark with no signal)
 self.addEventListener('fetch', (event) => {
-    const url = new URL(event.request.url);
-
-    // Supabase API requests: network-first
-    if (url.hostname.includes('supabase.co') || url.hostname !== self.location.hostname) {
-        event.respondWith(networkFirst(event.request));
-        return;
-    }
-
-    // Static assets: cache-first
-    event.respondWith(cacheFirst(event.request));
+    event.respondWith(networkFirst(event.request));
 });
 
-async function cacheFirst(request) {
-    const cached = await caches.match(request);
-    if (cached) return cached;
-
+async function networkFirst(request) {
     try {
         const response = await fetch(request);
-        if (response.ok) {
+        // Cache successful responses for offline fallback
+        if (response.ok && request.method === 'GET') {
             const cache = await caches.open(CACHE_NAME);
             cache.put(request, response.clone());
         }
         return response;
     } catch {
-        // Offline fallback: return index.html for navigation requests
-        if (request.mode === 'navigate') {
-            const cached = await caches.match(new Request(self.registration.scope));
-            if (cached) return cached;
-        }
-        return new Response('Offline', { status: 503 });
-    }
-}
+        // Offline: try cache
+        const cached = await caches.match(request);
+        if (cached) return cached;
 
-async function networkFirst(request) {
-    try {
-        const response = await fetch(request);
-        return response;
-    } catch {
+        // Offline fallback for navigation: serve cached index.html
+        if (request.mode === 'navigate') {
+            const indexCached = await caches.match(new Request(self.registration.scope));
+            if (indexCached) return indexCached;
+        }
+
         return new Response(
             JSON.stringify({ error: 'offline', reason: 'No network connection' }),
-            {
-                status: 503,
-                headers: { 'Content-Type': 'application/json' },
-            }
+            { status: 503, headers: { 'Content-Type': 'application/json' } }
         );
     }
 }

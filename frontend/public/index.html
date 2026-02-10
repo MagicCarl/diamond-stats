@@ -33,6 +33,30 @@
     <!-- Toast notifications -->
     <div id="toast-container" class="toast-container"></div>
 
+    <!-- Force clear old service worker cache on first load -->
+    <script>
+    (function() {
+        var SW_VERSION = 'v4';
+        if (localStorage.getItem('sw_version') !== SW_VERSION) {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(regs) {
+                    var promises = regs.map(function(r) { return r.unregister(); });
+                    return Promise.all(promises);
+                }).then(function() {
+                    return caches.keys();
+                }).then(function(keys) {
+                    return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+                }).then(function() {
+                    localStorage.setItem('sw_version', SW_VERSION);
+                    window.location.reload();
+                });
+            } else {
+                localStorage.setItem('sw_version', SW_VERSION);
+            }
+        }
+    })();
+    </script>
+
     <!-- Scripts -->
     <script src="js/config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

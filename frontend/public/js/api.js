@@ -295,7 +295,6 @@ export class API {
             .select('id', { count: 'exact', head: true })
             .eq('game_id', gameId);
 
-        const runsOnPlay = input.runsOnPlay != null ? input.runsOnPlay : (input.rbi || 0);
         const row = {
             game_id: gameId,
             player_id: input.playerId,
@@ -305,7 +304,6 @@ export class API {
             result: input.result,
             rbi: input.rbi || 0,
             runner_scored: input.runnerScored || false,
-            runs_on_play: runsOnPlay,
         };
 
         const { data: atBat, error: abErr } = await this.db
@@ -320,8 +318,11 @@ export class API {
         let newOuts = game.outs_in_current_inning + outsProduced;
         let newInning = game.current_inning;
         let newIsTop = game.is_top_of_inning;
-        // Score increments by runs scored on this play (separate from RBI for stats)
-        let newOurScore = game.our_score + (input.runsOnPlay || input.rbi || 0);
+        // Score increments: batter scored + RBI (runs driven in by this batter)
+        const batterRun = input.runnerScored ? 1 : 0;
+        // RBI counts OTHER runners driven in; batter scoring is separate
+        // But to avoid double-counting, total runs = max(rbi, batterRun) when rbi includes batter
+        let newOurScore = game.our_score + (input.rbi || 0) + (input.runnerScored && (input.rbi || 0) === 0 ? 1 : 0);
         let newOppScore = game.opponent_score;
 
         // Check for inning change (3 outs)
@@ -377,7 +378,7 @@ export class API {
         let newInning = game.current_inning;
         let newIsTop = game.is_top_of_inning;
         // Reverse runs scored on this play
-        const runsToReverse = atBat.runs_on_play != null ? atBat.runs_on_play : (atBat.rbi || 0);
+        const runsToReverse = (atBat.rbi || 0) + (atBat.runner_scored && (atBat.rbi || 0) === 0 ? 1 : 0);
         let newOurScore = game.our_score - runsToReverse;
 
         // If we crossed an inning boundary, reverse it
@@ -604,8 +605,9 @@ export class API {
         const innings = [];
         for (let i = 1; i <= maxInning; i++) {
             const innABs = atBats.filter(ab => ab.inning === i);
-            const ourRuns = innABs.filter(ab => ab.is_top === !game.is_home).reduce((s, ab) => s + (ab.runs_on_play != null ? ab.runs_on_play : (ab.rbi || 0)), 0);
-            const oppRuns = innABs.filter(ab => ab.is_top === game.is_home).reduce((s, ab) => s + (ab.runs_on_play != null ? ab.runs_on_play : (ab.rbi || 0)), 0);
+            const calcRuns = ab => (ab.rbi || 0) + (ab.runner_scored && (ab.rbi || 0) === 0 ? 1 : 0);
+            const ourRuns = innABs.filter(ab => ab.is_top === !game.is_home).reduce((s, ab) => s + calcRuns(ab), 0);
+            const oppRuns = innABs.filter(ab => ab.is_top === game.is_home).reduce((s, ab) => s + calcRuns(ab), 0);
             innings.push({ inning: i, ourRuns, opponentRuns: oppRuns });
         }
 

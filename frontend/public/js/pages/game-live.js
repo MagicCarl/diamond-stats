@@ -11,7 +11,6 @@ export class GameLivePage {
         this.pitching = [];
         this.currentBatterIndex = 0;
         this.selectedRBI = 0;
-        this.selectedRunsOnPlay = 0;
         this.batterScored = false;
         this.selectedResult = null;
     }
@@ -158,6 +157,9 @@ export class GameLivePage {
                         }).join('')
                     }
                     ${this.pitching.length > 0 ? this.renderPitcherSummary() : ''}
+                    <button class="btn btn-sm" id="pitching-btn" style="margin-top:8px;width:100%;">
+                        ${this.pitching.length > 0 ? 'Edit Pitching' : 'Add Pitcher'}
+                    </button>
                 </div>
 
                 <!-- Main Content -->
@@ -224,14 +226,8 @@ export class GameLivePage {
                 </div>
             </div>
 
-            <!-- Runs / RBI / Extras Row -->
+            <!-- RBI / Scored / Extras Row -->
             <div class="extras-row">
-                <div class="extras-group">
-                    <span class="extras-label">RUNS</span>
-                    ${[0,1,2,3,4].map(n => `
-                        <button class="rbi-btn ${n === this.selectedRunsOnPlay ? 'selected' : ''}" data-runs="${n}">${n}</button>
-                    `).join('')}
-                </div>
                 <div class="extras-group">
                     <span class="extras-label">RBI</span>
                     ${[0,1,2,3,4].map(n => `
@@ -377,7 +373,7 @@ export class GameLivePage {
             if (i < g.current_inning || (i === g.current_inning && !g.is_top_of_inning) || g.status === 'final') {
                 // Top of this inning is complete
                 const topABs = innABs.filter(ab => ab.is_top);
-                awayRuns = topABs.reduce((s, ab) => s + (ab.runs_on_play != null ? ab.runs_on_play : (ab.rbi || 0)), 0);
+                awayRuns = topABs.reduce((s, ab) => s + (ab.rbi || 0) + (ab.runner_scored && (ab.rbi || 0) === 0 ? 1 : 0), 0);
                 topABs.forEach(ab => {
                     if (this.app.api.isHit(ab.result)) awayH++;
                     if (ab.result === 'reached_on_error') awayE++;
@@ -387,7 +383,7 @@ export class GameLivePage {
             if (i < g.current_inning || g.status === 'final') {
                 // Bottom of this inning is complete
                 const botABs = innABs.filter(ab => !ab.is_top);
-                homeRuns = botABs.reduce((s, ab) => s + (ab.runs_on_play != null ? ab.runs_on_play : (ab.rbi || 0)), 0);
+                homeRuns = botABs.reduce((s, ab) => s + (ab.rbi || 0) + (ab.runner_scored && (ab.rbi || 0) === 0 ? 1 : 0), 0);
                 botABs.forEach(ab => {
                     if (this.app.api.isHit(ab.result)) homeH++;
                     if (ab.result === 'reached_on_error') homeE++;
@@ -429,6 +425,7 @@ export class GameLivePage {
         $('setup-lineup-btn-main')?.addEventListener('click', () => this.showLineupSetup());
         $('edit-lineup-btn')?.addEventListener('click', () => this.showLineupSetup());
         $('edit-lineup-btn-main')?.addEventListener('click', () => this.showLineupSetup());
+        $('pitching-btn')?.addEventListener('click', () => this.showPitchingModal());
 
         // Result buttons - select/highlight only (Next button confirms)
         document.querySelectorAll('[data-result]').forEach(btn => {
@@ -440,15 +437,6 @@ export class GameLivePage {
             if (this.selectedResult) {
                 this.recordResult(this.selectedResult);
             }
-        });
-
-        // Runs on play buttons
-        document.querySelectorAll('[data-runs]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.selectedRunsOnPlay = parseInt(btn.dataset.runs);
-                document.querySelectorAll('[data-runs]').forEach(b => b.classList.remove('selected'));
-                btn.classList.add('selected');
-            });
         });
 
         // RBI buttons
@@ -686,11 +674,6 @@ export class GameLivePage {
 
         // Auto-set HR defaults when selecting home run
         if (result === 'home_run') {
-            if (this.selectedRunsOnPlay === 0) {
-                this.selectedRunsOnPlay = 1;
-                document.querySelectorAll('[data-runs]').forEach(b => b.classList.remove('selected'));
-                document.querySelector('[data-runs="1"]')?.classList.add('selected');
-            }
             if (this.selectedRBI === 0) {
                 this.selectedRBI = 1;
                 document.querySelectorAll('.rbi-select').forEach(b => b.classList.remove('selected'));
@@ -731,11 +714,9 @@ export class GameLivePage {
         const playerId = batter.players?.id || batter.player_id;
 
         // Auto-set minimums for HR
-        let runs = this.selectedRunsOnPlay;
         let rbi = this.selectedRBI;
         let scored = this.batterScored;
         if (result === 'home_run') {
-            runs = Math.max(runs, 1);
             rbi = Math.max(rbi, 1);
             scored = true;
         }
@@ -744,7 +725,6 @@ export class GameLivePage {
             playerId,
             result,
             rbi,
-            runsOnPlay: runs,
             runnerScored: scored,
         };
 
@@ -758,15 +738,14 @@ export class GameLivePage {
                     gameId: this.gameId, playerId,
                     inning: this.game.current_inning,
                     isTop: this.game.is_top_of_inning,
-                    result, rbi, runsOnPlay: runs, runnerScored: scored,
+                    result, rbi, runnerScored: scored,
                 });
                 this.app.showToast('At-bat queued (offline)', 'info');
             }
 
             // Reset all selections and advance batter
             this.selectedRBI = 0;
-            this.selectedRunsOnPlay = 0;
-            this.batterScored = false;
+                this.batterScored = false;
             this.selectedResult = null;
             this.currentBatterIndex = (this.currentBatterIndex + 1) % Math.max(1, this.lineup.length);
 
@@ -829,6 +808,154 @@ export class GameLivePage {
         if (['strikeout_swinging', 'strikeout_looking'].includes(result)) return 'k';
         if (result === 'reached_on_error') return 'error';
         return 'out';
+    }
+
+    // ===== Pitching Modal =====
+    async showPitchingModal() {
+        // Get roster for pitcher selection
+        const teamData = await this.app.api.getTeam(this.game.team_id);
+        const players = teamData.players || [];
+
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.id = 'pitching-modal';
+
+        overlay.innerHTML = `
+            <div class="modal-content" style="max-width:500px;">
+                <div class="modal-header">
+                    <h2>Pitching</h2>
+                    <button class="btn btn-sm" id="close-pitching-modal">&times;</button>
+                </div>
+
+                ${this.pitching.length > 0 ? `
+                    <div style="margin-bottom:16px;">
+                        <h3 style="font-size:14px;color:var(--text-secondary);margin-bottom:8px;">Current Pitchers</h3>
+                        ${this.pitching.map((p, i) => {
+                            const pl = p.players || {};
+                            return `
+                                <div class="pitching-entry" data-pitch-id="${p.id}" data-index="${i}" style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px;border-bottom:1px solid var(--card-border);">
+                                    <div>
+                                        <strong>#${pl.jersey_number ?? '?'} ${this.esc(pl.last_name || '?')}</strong>
+                                        <span style="font-family:var(--font-mono);color:var(--text-muted);margin-left:8px;">
+                                            IP:${this.formatIP(p.outs_recorded)} H:${p.hits_allowed} R:${p.runs_allowed} ER:${p.earned_runs} K:${p.strikeouts} BB:${p.walks}
+                                            ${p.pitches_thrown != null ? ` PC:${p.pitches_thrown}` : ''}
+                                        </span>
+                                    </div>
+                                    <button class="btn btn-sm edit-pitcher-btn" data-pitch-id="${p.id}">Edit</button>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                ` : ''}
+
+                <h3 style="font-size:14px;color:var(--text-secondary);margin-bottom:8px;">
+                    ${this.pitching.length > 0 ? 'New Pitcher' : 'Add Pitcher'}
+                </h3>
+                <div style="display:grid;gap:12px;">
+                    <select id="pitcher-select" class="input" style="padding:10px;">
+                        <option value="">Select pitcher...</option>
+                        ${players.map(p => `<option value="${p.id}">#${p.jersey_number ?? '?'} ${this.esc(p.first_name)} ${this.esc(p.last_name)}</option>`).join('')}
+                    </select>
+                    <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:8px;">
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">Outs Recorded</label>
+                            <input type="number" id="pitch-outs" class="input" value="0" min="0" style="padding:8px;text-align:center;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">Hits Allowed</label>
+                            <input type="number" id="pitch-hits" class="input" value="0" min="0" style="padding:8px;text-align:center;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">Runs</label>
+                            <input type="number" id="pitch-runs" class="input" value="0" min="0" style="padding:8px;text-align:center;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">Earned Runs</label>
+                            <input type="number" id="pitch-er" class="input" value="0" min="0" style="padding:8px;text-align:center;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">Strikeouts</label>
+                            <input type="number" id="pitch-k" class="input" value="0" min="0" style="padding:8px;text-align:center;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">Walks</label>
+                            <input type="number" id="pitch-bb" class="input" value="0" min="0" style="padding:8px;text-align:center;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">HR Allowed</label>
+                            <input type="number" id="pitch-hr" class="input" value="0" min="0" style="padding:8px;text-align:center;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">Pitch Count</label>
+                            <input type="number" id="pitch-pc" class="input" value="" min="0" placeholder="—" style="padding:8px;text-align:center;">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="save-pitcher-btn">Save Pitcher</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // Track which pitcher we're editing (null = new)
+        let editingId = null;
+
+        // Close
+        document.getElementById('close-pitching-modal').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+        // Edit existing pitcher
+        overlay.querySelectorAll('.edit-pitcher-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.pitchId;
+                const entry = this.pitching.find(p => p.id === id);
+                if (!entry) return;
+                editingId = id;
+                const pl = entry.players || {};
+                // Fill form with existing data
+                document.getElementById('pitcher-select').value = pl.id || entry.player_id;
+                document.getElementById('pitch-outs').value = entry.outs_recorded;
+                document.getElementById('pitch-hits').value = entry.hits_allowed;
+                document.getElementById('pitch-runs').value = entry.runs_allowed;
+                document.getElementById('pitch-er').value = entry.earned_runs;
+                document.getElementById('pitch-k').value = entry.strikeouts;
+                document.getElementById('pitch-bb').value = entry.walks;
+                document.getElementById('pitch-hr').value = entry.home_runs_allowed || 0;
+                document.getElementById('pitch-pc').value = entry.pitches_thrown ?? '';
+                document.getElementById('save-pitcher-btn').textContent = 'Update Pitcher';
+            });
+        });
+
+        // Save
+        document.getElementById('save-pitcher-btn').addEventListener('click', async () => {
+            const playerId = document.getElementById('pitcher-select').value;
+            if (!playerId) { alert('Select a pitcher'); return; }
+
+            const input = {
+                playerId,
+                outsRecorded: parseInt(document.getElementById('pitch-outs').value) || 0,
+                hitsAllowed: parseInt(document.getElementById('pitch-hits').value) || 0,
+                runsAllowed: parseInt(document.getElementById('pitch-runs').value) || 0,
+                earnedRuns: parseInt(document.getElementById('pitch-er').value) || 0,
+                strikeouts: parseInt(document.getElementById('pitch-k').value) || 0,
+                walks: parseInt(document.getElementById('pitch-bb').value) || 0,
+                homeRunsAllowed: parseInt(document.getElementById('pitch-hr').value) || 0,
+                pitchesThrown: document.getElementById('pitch-pc').value ? parseInt(document.getElementById('pitch-pc').value) : null,
+            };
+
+            try {
+                if (editingId) {
+                    await this.app.api.updatePitching(this.gameId, editingId, input);
+                } else {
+                    await this.app.api.addPitching(this.gameId, input);
+                }
+                // Reload pitching data
+                this.pitching = await this.app.api.listPitching(this.gameId);
+                overlay.remove();
+                this.renderGame(document.getElementById('app'));
+            } catch (err) {
+                alert('Error saving pitcher: ' + err.message);
+            }
+        });
     }
 
     formatIP(outs) {

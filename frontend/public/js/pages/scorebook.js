@@ -130,7 +130,7 @@ export class ScorebookPage {
                                 ${inningHeaders.map(inn => {
                                     // Runs scored in this inning
                                     const innABs = atBats.filter(ab => ab.inning === inn);
-                                    const runs = innABs.reduce((s, ab) => s + (ab.runs_on_play != null ? ab.runs_on_play : (ab.rbi || 0)), 0);
+                                    const runs = innABs.reduce((s, ab) => s + (ab.rbi || 0) + (ab.runner_scored && (ab.rbi || 0) === 0 ? 1 : 0), 0);
                                     return `<td style="font-family:var(--font-mono);">${runs}</td>`;
                                 }).join('')}
                                 <td class="totals-col">${playerRows.reduce((s, r) => s + r.stats.ab, 0)}</td>

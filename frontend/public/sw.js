@@ -1,7 +1,7 @@
 // Diamond Stats - Service Worker
 // Cache-first for static assets, network-first for API
 
-const CACHE_NAME = 'diamond-stats-v2';
+const CACHE_NAME = 'diamond-stats-v3';
 
 // Install: pre-cache the app shell
 self.addEventListener('install', (event) => {

@@ -6,20 +6,29 @@ export class StatsPage {
         this.teamId = params.teamId;
         this.sortCol = null;
         this.sortDir = 'desc';
+        this.battingData = null;
+        this.pitchingData = null;
     }
 
     async render(container) {
+        // Fetch team name
+        let teamName = 'Team';
+        try {
+            const { team } = await this.app.api.getTeam(this.teamId);
+            teamName = team.name;
+        } catch (e) { /* ignore */ }
+
         container.innerHTML = `
             <nav class="nav-bar">
                 <a href="#/dashboard" class="logo">Diamond<span>Stats</span></a>
                 <div class="nav-links">
                     <a href="#/dashboard" class="nav-link">Dashboard</a>
-                    <a href="#/teams/${this.teamId}" class="nav-link">Team</a>
+                    <a href="#/teams/${this.teamId}" class="nav-link">Roster</a>
                 </div>
             </nav>
             <div class="page">
                 <div class="page-header">
-                    <h1 class="page-title">Team Statistics</h1>
+                    <h1 class="page-title">${this.esc(teamName)} Statistics</h1>
                 </div>
 
                 <div class="tabs" id="stats-tabs">
@@ -38,6 +47,8 @@ export class StatsPage {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('#stats-tabs .tab').forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
+                this.sortCol = null;
+                this.sortDir = 'desc';
                 this.loadTab(tab.dataset.tab);
             });
         });
@@ -54,128 +65,203 @@ export class StatsPage {
             else if (tab === 'pitching') await this.renderPitching(content);
             else if (tab === 'record') await this.renderRecord(content);
         } catch (err) {
+            console.error('Stats load failed:', err);
             content.innerHTML = `<p style="color:var(--offline);">${this.esc(err.message)}</p>`;
         }
     }
 
     async renderBatting(container) {
-        const stats = await this.app.api.battingStats(this.teamId);
+        if (!this.battingData) {
+            this.battingData = await this.app.api.battingStats(this.teamId);
+        }
+        let stats = [...this.battingData];
+
+        // Sort
+        if (this.sortCol) {
+            stats.sort((a, b) => {
+                const aVal = this.getNestedVal(a, this.sortCol);
+                const bVal = this.getNestedVal(b, this.sortCol);
+                if (aVal == null && bVal == null) return 0;
+                if (aVal == null) return 1;
+                if (bVal == null) return -1;
+                return this.sortDir === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+            });
+        }
 
         if (stats.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>No batting data yet.</p></div>';
+            container.innerHTML = '<div class="empty-state"><p>No batting data yet. Score some games first!</p></div>';
             return;
         }
+
+        const cols = [
+            { key: 'playerName', label: 'Player', align: 'left' },
+            { key: 'stats.games', label: 'G' },
+            { key: 'stats.pa', label: 'PA' },
+            { key: 'stats.ab', label: 'AB' },
+            { key: 'stats.h', label: 'H' },
+            { key: 'stats.doubles', label: '2B' },
+            { key: 'stats.triples', label: '3B' },
+            { key: 'stats.hr', label: 'HR' },
+            { key: 'stats.rbi', label: 'RBI' },
+            { key: 'stats.r', label: 'R' },
+            { key: 'stats.bb', label: 'BB' },
+            { key: 'stats.k', label: 'K' },
+            { key: 'stats.sb', label: 'SB' },
+            { key: 'stats.tb', label: 'TB' },
+            { key: 'stats.avg', label: 'AVG', display: 'avgDisplay' },
+            { key: 'stats.obp', label: 'OBP', display: 'obpDisplay' },
+            { key: 'stats.slg', label: 'SLG', display: 'slgDisplay' },
+            { key: 'stats.ops', label: 'OPS', display: 'opsDisplay' },
+        ];
 
         container.innerHTML = `
             <div class="stat-table-wrap">
                 <table class="stat-table" id="batting-table">
                     <thead>
                         <tr>
-                            <th class="sortable" data-key="playerName">Player</th>
-                            <th class="sortable" data-key="stats.games">G</th>
-                            <th class="sortable" data-key="stats.pa">PA</th>
-                            <th class="sortable" data-key="stats.ab">AB</th>
-                            <th class="sortable" data-key="stats.h">H</th>
-                            <th class="sortable" data-key="stats.doubles">2B</th>
-                            <th class="sortable" data-key="stats.triples">3B</th>
-                            <th class="sortable" data-key="stats.hr">HR</th>
-                            <th class="sortable" data-key="stats.rbi">RBI</th>
-                            <th class="sortable" data-key="stats.r">R</th>
-                            <th class="sortable" data-key="stats.bb">BB</th>
-                            <th class="sortable" data-key="stats.k">K</th>
-                            <th class="sortable" data-key="stats.sb">SB</th>
-                            <th class="sortable" data-key="stats.avg">AVG</th>
-                            <th class="sortable" data-key="stats.obp">OBP</th>
-                            <th class="sortable" data-key="stats.slg">SLG</th>
-                            <th class="sortable" data-key="stats.ops">OPS</th>
+                            ${cols.map(c => {
+                                const active = this.sortCol === c.key;
+                                const arrow = active ? (this.sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+                                return `<th class="sortable${active ? ' sort-active' : ''}" data-key="${c.key}" style="${c.align === 'left' ? 'text-align:left;' : ''}">${c.label}${arrow}</th>`;
+                            }).join('')}
                         </tr>
                     </thead>
                     <tbody>
                         ${stats.map(s => `
                             <tr>
-                                <td>${this.esc(s.playerName)}</td>
+                                <td style="text-align:left;font-weight:500;">${this.esc(s.playerName)}</td>
                                 <td>${s.stats.games}</td>
                                 <td>${s.stats.pa}</td>
                                 <td>${s.stats.ab}</td>
-                                <td>${s.stats.h}</td>
-                                <td>${s.stats.doubles}</td>
-                                <td>${s.stats.triples}</td>
-                                <td>${s.stats.hr}</td>
-                                <td>${s.stats.rbi}</td>
+                                <td>${this.hl(s.stats.h, 'var(--hit)')}</td>
+                                <td>${this.hl(s.stats.doubles, 'var(--hit)')}</td>
+                                <td>${this.hl(s.stats.triples, 'var(--hit)')}</td>
+                                <td>${this.hl(s.stats.hr, 'var(--hr)')}</td>
+                                <td>${this.hl(s.stats.rbi, 'var(--text-primary)')}</td>
                                 <td>${s.stats.r}</td>
                                 <td>${s.stats.bb}</td>
                                 <td>${s.stats.k}</td>
                                 <td>${s.stats.sb}</td>
-                                <td>${s.stats.avgDisplay}</td>
-                                <td>${s.stats.obpDisplay}</td>
-                                <td>${s.stats.slgDisplay}</td>
-                                <td>${s.stats.opsDisplay}</td>
+                                <td>${s.stats.tb}</td>
+                                <td class="stat-mono">${s.stats.avgDisplay}</td>
+                                <td class="stat-mono">${s.stats.obpDisplay}</td>
+                                <td class="stat-mono">${s.stats.slgDisplay}</td>
+                                <td class="stat-mono ${this.opsColor(s.stats.ops)}">${s.stats.opsDisplay}</td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
             </div>
         `;
+
+        // Attach sort listeners
+        container.querySelectorAll('.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const key = th.dataset.key;
+                if (this.sortCol === key) {
+                    this.sortDir = this.sortDir === 'desc' ? 'asc' : 'desc';
+                } else {
+                    this.sortCol = key;
+                    this.sortDir = key === 'playerName' ? 'asc' : 'desc';
+                }
+                this.renderBatting(container);
+            });
+        });
     }
 
     async renderPitching(container) {
-        const stats = await this.app.api.pitchingStats(this.teamId);
+        if (!this.pitchingData) {
+            this.pitchingData = await this.app.api.pitchingStats(this.teamId);
+        }
+        let stats = [...this.pitchingData];
+
+        if (this.sortCol) {
+            stats.sort((a, b) => {
+                const aVal = this.getNestedVal(a, this.sortCol);
+                const bVal = this.getNestedVal(b, this.sortCol);
+                if (aVal == null && bVal == null) return 0;
+                if (aVal == null) return 1;
+                if (bVal == null) return -1;
+                return this.sortDir === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+            });
+        }
 
         if (stats.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>No pitching data yet.</p></div>';
+            container.innerHTML = '<div class="empty-state"><p>No pitching data yet. Add pitching appearances during games.</p></div>';
             return;
         }
 
+        const cols = [
+            { key: 'playerName', label: 'Player', align: 'left' },
+            { key: 'stats.games', label: 'G' },
+            { key: 'stats.gamesStarted', label: 'GS' },
+            { key: 'stats.wins', label: 'W' },
+            { key: 'stats.losses', label: 'L' },
+            { key: 'stats.saves', label: 'SV' },
+            { key: 'stats.outs', label: 'IP', display: 'ipDisplay' },
+            { key: 'stats.h', label: 'H' },
+            { key: 'stats.r', label: 'R' },
+            { key: 'stats.er', label: 'ER' },
+            { key: 'stats.bb', label: 'BB' },
+            { key: 'stats.k', label: 'K' },
+            { key: 'stats.hr', label: 'HR' },
+            { key: 'stats.era', label: 'ERA', display: 'eraDisplay' },
+            { key: 'stats.whip', label: 'WHIP', display: 'whipDisplay' },
+            { key: 'stats.kPer9', label: 'K/9' },
+            { key: 'stats.bbPer9', label: 'BB/9' },
+        ];
+
         container.innerHTML = `
             <div class="stat-table-wrap">
-                <table class="stat-table">
+                <table class="stat-table" id="pitching-table">
                     <thead>
                         <tr>
-                            <th>Player</th>
-                            <th>G</th>
-                            <th>GS</th>
-                            <th>W</th>
-                            <th>L</th>
-                            <th>SV</th>
-                            <th>IP</th>
-                            <th>H</th>
-                            <th>R</th>
-                            <th>ER</th>
-                            <th>BB</th>
-                            <th>K</th>
-                            <th>HR</th>
-                            <th>ERA</th>
-                            <th>WHIP</th>
-                            <th>K/9</th>
-                            <th>BB/9</th>
+                            ${cols.map(c => {
+                                const active = this.sortCol === c.key;
+                                const arrow = active ? (this.sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+                                return `<th class="sortable${active ? ' sort-active' : ''}" data-key="${c.key}" style="${c.align === 'left' ? 'text-align:left;' : ''}">${c.label}${arrow}</th>`;
+                            }).join('')}
                         </tr>
                     </thead>
                     <tbody>
                         ${stats.map(s => `
                             <tr>
-                                <td>${this.esc(s.playerName)}</td>
+                                <td style="text-align:left;font-weight:500;">${this.esc(s.playerName)}</td>
                                 <td>${s.stats.games}</td>
                                 <td>${s.stats.gamesStarted}</td>
-                                <td>${s.stats.wins}</td>
-                                <td>${s.stats.losses}</td>
-                                <td>${s.stats.saves}</td>
-                                <td>${s.stats.ipDisplay}</td>
+                                <td>${this.hl(s.stats.wins, 'var(--hit)')}</td>
+                                <td>${this.hl(s.stats.losses, 'var(--offline)')}</td>
+                                <td>${this.hl(s.stats.saves, 'var(--accent)')}</td>
+                                <td class="stat-mono">${s.stats.ipDisplay}</td>
                                 <td>${s.stats.h}</td>
                                 <td>${s.stats.r}</td>
                                 <td>${s.stats.er}</td>
                                 <td>${s.stats.bb}</td>
-                                <td>${s.stats.k}</td>
+                                <td>${this.hl(s.stats.k, 'var(--strikeout)')}</td>
                                 <td>${s.stats.hr}</td>
-                                <td>${s.stats.eraDisplay}</td>
-                                <td>${s.stats.whipDisplay}</td>
-                                <td>${this.fmt(s.stats.kPer9)}</td>
-                                <td>${this.fmt(s.stats.bbPer9)}</td>
+                                <td class="stat-mono">${s.stats.eraDisplay}</td>
+                                <td class="stat-mono">${s.stats.whipDisplay}</td>
+                                <td class="stat-mono">${this.fmt(s.stats.kPer9)}</td>
+                                <td class="stat-mono">${this.fmt(s.stats.bbPer9)}</td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
             </div>
         `;
+
+        container.querySelectorAll('.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const key = th.dataset.key;
+                if (this.sortCol === key) {
+                    this.sortDir = this.sortDir === 'desc' ? 'asc' : 'desc';
+                } else {
+                    this.sortCol = key;
+                    this.sortDir = key === 'playerName' ? 'asc' : 'desc';
+                }
+                this.renderPitching(container);
+            });
+        });
     }
 
     async renderRecord(container) {
@@ -222,6 +308,22 @@ export class StatsPage {
                 </div>
             </div>
         `;
+    }
+
+    getNestedVal(obj, key) {
+        return key.split('.').reduce((o, k) => o?.[k], obj);
+    }
+
+    hl(val, color) {
+        if (val > 0) return `<span style="color:${color};font-weight:600;">${val}</span>`;
+        return `${val}`;
+    }
+
+    opsColor(ops) {
+        if (ops == null) return '';
+        if (ops >= 0.900) return 'stat-elite';
+        if (ops >= 0.800) return 'stat-good';
+        return '';
     }
 
     fmt(val) {

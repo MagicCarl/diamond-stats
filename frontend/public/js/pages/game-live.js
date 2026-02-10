@@ -1,5 +1,5 @@
 // Diamond Stats - Live Game Scoring Screen (PRIMARY SCREEN)
-// iPad landscape optimized: left sidebar lineup, main area at-bat controls + game log
+// iPad landscape optimized: top linescore, left lineup, main at-bat controls + game log
 
 export class GameLivePage {
     constructor(app, params) {
@@ -11,7 +11,8 @@ export class GameLivePage {
         this.pitching = [];
         this.currentBatterIndex = 0;
         this.selectedRBI = 0;
-        this.selectedScored = false;
+        this.selectedRunsOnPlay = 0;
+        this.batterScored = false;
     }
 
     async render(container) {
@@ -27,105 +28,137 @@ export class GameLivePage {
             this.atBats = detail.atBats;
             this.pitching = detail.pitching;
 
-            // Find current batter position in lineup
-            if (this.lineup.length > 0) {
+            // Find current batter position
+            if (this.lineup.length > 0 && this.atBats.length > 0) {
                 const lastAB = this.atBats[this.atBats.length - 1];
-                if (lastAB) {
-                    const idx = this.lineup.findIndex(l => {
-                        const lineupPlayerId = l.players?.id || l.player_id;
-                        return lineupPlayerId === lastAB.player_id;
-                    });
-                    this.currentBatterIndex = idx >= 0 ? (idx + 1) % this.lineup.length : 0;
-                }
+                const idx = this.lineup.findIndex(l => {
+                    const pid = l.players?.id || l.player_id;
+                    return pid === lastAB.player_id;
+                });
+                this.currentBatterIndex = idx >= 0 ? (idx + 1) % this.lineup.length : 0;
             }
 
             this.renderGame(container);
         } catch (err) {
-            container.innerHTML = `<div class="empty-state"><p style="color:var(--offline);">${this.esc(err.message)}</p></div>`;
+            console.error('Failed to load game:', err);
+            container.innerHTML = `<div class="empty-state"><p style="color:var(--offline);">Error: ${this.esc(err.message)}</p><a href="#/dashboard" class="btn btn-primary" style="margin-top:16px;">Dashboard</a></div>`;
         }
     }
 
     renderGame(container) {
         const g = this.game;
         const isLive = g.status === 'in_progress';
-        const halfInning = g.is_top_of_inning ? 'TOP' : 'BOT';
         const currentBatter = this.lineup[this.currentBatterIndex];
-        const teamName = g.teams?.name || 'US';
-        const oppName = g.opponent_name || 'OPP';
+        const teamName = g.teams?.name || 'Us';
+        const oppName = g.opponent_name || 'Opponent';
+
+        // Build linescore data
+        const linescore = this.buildLinescore();
 
         container.innerHTML = `
             <div class="game-live">
-                <!-- Scoreboard -->
+                <!-- Top Scoreboard with Linescore -->
                 <div class="scoreboard">
-                    <div class="scoreboard-teams">
-                        <div class="scoreboard-team ${!g.is_top_of_inning && isLive ? 'batting' : ''}">
-                            <span class="scoreboard-team-name">${g.is_home ? this.esc(oppName) : this.esc(teamName)}</span>
-                            <span class="scoreboard-score">${g.is_home ? g.opponent_score : g.our_score}</span>
-                        </div>
-                        <div class="scoreboard-inning-display">
-                            <span class="inning-half">${halfInning}</span>
-                            <span class="inning-num">${g.current_inning}</span>
-                        </div>
-                        <div class="scoreboard-team ${g.is_top_of_inning && isLive ? 'batting' : ''}">
-                            <span class="scoreboard-team-name">${g.is_home ? this.esc(teamName) : this.esc(oppName)}</span>
-                            <span class="scoreboard-score">${g.is_home ? g.our_score : g.opponent_score}</span>
+                    <div class="scoreboard-left">
+                        <div class="linescore-compact">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th class="team-col"></th>
+                                        ${linescore.innings.map(inn => `
+                                            <th class="${inn.num === g.current_inning ? 'current-inning' : ''}">${inn.num}</th>
+                                        `).join('')}
+                                        <th class="total-col">R</th>
+                                        <th class="total-col">H</th>
+                                        <th class="total-col">E</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="${g.is_top_of_inning && isLive ? 'batting-row' : ''}">
+                                        <td class="team-col">${g.is_home ? this.esc(oppName).substring(0, 10) : this.esc(teamName).substring(0, 10)}</td>
+                                        ${linescore.innings.map(inn => `
+                                            <td class="${inn.num === g.current_inning ? 'current-inning' : ''}">${inn.away ?? '-'}</td>
+                                        `).join('')}
+                                        <td class="total-col">${g.is_home ? g.opponent_score : g.our_score}</td>
+                                        <td class="total-col">${g.is_home ? linescore.awayH : linescore.homeH}</td>
+                                        <td class="total-col">${g.is_home ? linescore.awayE : linescore.homeE}</td>
+                                    </tr>
+                                    <tr class="${!g.is_top_of_inning && isLive ? 'batting-row' : ''}">
+                                        <td class="team-col">${g.is_home ? this.esc(teamName).substring(0, 10) : this.esc(oppName).substring(0, 10)}</td>
+                                        ${linescore.innings.map(inn => `
+                                            <td class="${inn.num === g.current_inning ? 'current-inning' : ''}">${inn.home ?? '-'}</td>
+                                        `).join('')}
+                                        <td class="total-col">${g.is_home ? g.our_score : g.opponent_score}</td>
+                                        <td class="total-col">${g.is_home ? linescore.homeH : linescore.awayH}</td>
+                                        <td class="total-col">${g.is_home ? linescore.homeE : linescore.awayE}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                    <div class="scoreboard-outs">
-                        <span class="outs-label">OUTS</span>
-                        <span class="out-dot ${g.outs_in_current_inning >= 1 ? 'filled' : ''}"></span>
-                        <span class="out-dot ${g.outs_in_current_inning >= 2 ? 'filled' : ''}"></span>
-                    </div>
-                    <div class="scoreboard-actions">
-                        ${g.status === 'scheduled' ? `
-                            <button class="btn btn-sm" id="setup-lineup-btn">Set Lineup</button>
-                            <button class="btn btn-primary btn-sm" id="start-game-btn">Start Game</button>
-                        ` : ''}
-                        ${isLive ? `
-                            <button class="btn btn-sm" id="edit-lineup-btn">Lineup</button>
-                            <button class="btn btn-danger btn-sm" id="end-game-btn">End Game</button>
-                        ` : ''}
-                        <a href="#/games/${this.gameId}/box" class="btn btn-sm">Box Score</a>
-                        <a href="#/teams/${g.team_id}" class="btn btn-sm">Back</a>
+                    <div class="scoreboard-right">
+                        <div class="game-situation">
+                            <div class="inning-display">
+                                <span class="inning-arrow">${g.is_top_of_inning ? '\u25B2' : '\u25BC'}</span>
+                                <span class="inning-number">${g.current_inning}</span>
+                            </div>
+                            <div class="outs-display">
+                                <span class="outs-label">OUTS</span>
+                                <div class="outs-dots">
+                                    <span class="out-dot ${g.outs_in_current_inning >= 1 ? 'filled' : ''}"></span>
+                                    <span class="out-dot ${g.outs_in_current_inning >= 2 ? 'filled' : ''}"></span>
+                                    <span class="out-dot ${g.outs_in_current_inning >= 3 ? 'filled' : ''}"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="scoreboard-actions">
+                            ${g.status === 'scheduled' ? `
+                                <button class="btn btn-sm" id="setup-lineup-btn">Set Lineup</button>
+                                <button class="btn btn-primary btn-sm" id="start-game-btn">Start Game</button>
+                            ` : ''}
+                            ${isLive ? `
+                                <button class="btn btn-sm" id="edit-lineup-btn">Lineup</button>
+                                <button class="btn btn-danger btn-sm" id="end-game-btn">End Game</button>
+                            ` : ''}
+                            <a href="#/games/${this.gameId}/box" class="btn btn-sm">Box</a>
+                            <a href="#/teams/${g.team_id}" class="btn btn-sm">Back</a>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Lineup Panel (left sidebar) -->
+                <!-- Left Sidebar: Batting Order -->
                 <div class="lineup-panel">
                     <div class="lineup-header">
                         <span class="lineup-title">BATTING ORDER</span>
-                        <span class="lineup-count">${this.lineup.length} players</span>
+                        <span class="lineup-count">${this.lineup.length}P</span>
                     </div>
                     ${this.lineup.length === 0
-                        ? `<div class="empty-state" style="padding:var(--space-md); min-height:auto;">
-                               <p style="font-size:var(--font-size-sm);">No lineup set yet</p>
+                        ? `<div class="empty-state" style="padding:var(--space-md);min-height:auto;">
+                               <p style="font-size:var(--font-size-sm);">No lineup set</p>
                                <button class="btn btn-primary btn-sm" id="setup-lineup-btn-side">Set Lineup</button>
                            </div>`
                         : this.lineup.map((entry, i) => {
                             const p = entry.players || {};
                             const isActive = i === this.currentBatterIndex && isLive;
-                            const playerABs = this.atBats.filter(ab =>
-                                ab.player_id === (p.id || entry.player_id)
-                            );
-                            const pStats = this.quickBatterLine(playerABs);
+                            const pABs = this.atBats.filter(ab => ab.player_id === (p.id || entry.player_id));
+                            const line = this.quickBatterLine(pABs);
                             return `
                                 <div class="lineup-item ${isActive ? 'active' : ''}"
-                                     data-index="${i}" ${isLive ? 'style="cursor:pointer"' : ''}>
+                                     data-index="${i}">
                                     <span class="lineup-number">${entry.batting_order}</span>
                                     <div class="lineup-info">
                                         <span class="lineup-name">#${p.jersey_number ?? '?'} ${this.esc(p.last_name || '')}</span>
-                                        <span class="lineup-stats-line">${pStats}</span>
+                                        <span class="lineup-stats-line">${line}</span>
                                     </div>
                                     <span class="lineup-position">${this.esc(entry.position)}</span>
                                 </div>
                             `;
                         }).join('')
                     }
-
                     ${this.pitching.length > 0 ? this.renderPitcherSummary() : ''}
                 </div>
 
-                <!-- Main Content Area -->
+                <!-- Main Content -->
                 <div class="at-bat-panel">
                     ${!isLive ? this.renderNotLiveState() : this.renderLiveContent(currentBatter)}
                 </div>
@@ -137,8 +170,11 @@ export class GameLivePage {
 
     renderLiveContent(batter) {
         const p = batter?.players || {};
+        const pABs = batter ? this.atBats.filter(ab => ab.player_id === (p.id || batter.player_id)) : [];
+        const line = this.quickBatterLine(pABs);
+
         return `
-            <!-- Current At-Bat -->
+            <!-- Current Batter Header -->
             <div class="at-bat-header">
                 <div class="at-bat-batter-info">
                     <span class="at-bat-label">NOW BATTING</span>
@@ -146,10 +182,13 @@ export class GameLivePage {
                         #${p.jersey_number || '?'} ${this.esc(p.first_name || '')} ${this.esc(p.last_name || '')}
                     </span>
                 </div>
-                <span class="at-bat-position">${this.esc(batter?.position || '')}</span>
+                <div style="text-align:right;">
+                    <span class="at-bat-position">${this.esc(batter?.position || '')}</span>
+                    ${line ? `<div class="at-bat-game-stats">${line}</div>` : ''}
+                </div>
             </div>
 
-            <!-- Result Buttons -->
+            <!-- Result Buttons Grid -->
             <div class="result-grid">
                 <div class="result-row">
                     <span class="result-section-label">HITS</span>
@@ -167,7 +206,7 @@ export class GameLivePage {
                 <div class="result-row">
                     <span class="result-section-label">OUTS</span>
                     <button class="result-btn strikeout" data-result="strikeout_swinging">K</button>
-                    <button class="result-btn strikeout" data-result="strikeout_looking">KL</button>
+                    <button class="result-btn strikeout" data-result="strikeout_looking">K&#x29C;</button>
                     <button class="result-btn out" data-result="ground_out">GO</button>
                     <button class="result-btn out" data-result="fly_out">FO</button>
                     <button class="result-btn out" data-result="line_out">LO</button>
@@ -183,31 +222,37 @@ export class GameLivePage {
                 </div>
             </div>
 
-            <!-- RBI / Scored / Undo -->
+            <!-- Runs / RBI / Extras Row -->
             <div class="extras-row">
                 <div class="extras-group">
-                    <span class="extras-label">RBI</span>
+                    <span class="extras-label">RUNS</span>
                     ${[0,1,2,3,4].map(n => `
-                        <button class="rbi-btn ${n === this.selectedRBI ? 'selected' : ''}" data-rbi="${n}">${n}</button>
+                        <button class="rbi-btn ${n === this.selectedRunsOnPlay ? 'selected' : ''}" data-runs="${n}">${n}</button>
                     `).join('')}
                 </div>
                 <div class="extras-group">
-                    <span class="extras-label">Scored?</span>
-                    <button class="btn btn-sm ${this.selectedScored ? 'btn-primary' : ''}" id="scored-yes">Yes</button>
-                    <button class="btn btn-sm ${!this.selectedScored ? 'btn-primary' : ''}" id="scored-no">No</button>
+                    <span class="extras-label">RBI</span>
+                    ${[0,1,2,3,4].map(n => `
+                        <button class="rbi-btn rbi-select ${n === this.selectedRBI ? 'selected' : ''}" data-rbi="${n}">${n}</button>
+                    `).join('')}
+                </div>
+                <div class="extras-group">
+                    <span class="extras-label">Scored</span>
+                    <button class="btn btn-xs ${this.batterScored ? 'btn-primary' : ''}" id="scored-toggle">${this.batterScored ? 'YES' : 'NO'}</button>
                 </div>
                 <button class="btn btn-danger btn-sm" id="undo-btn" ${this.atBats.length === 0 ? 'disabled' : ''}
-                    style="margin-left:auto;">
-                    Undo Last
-                </button>
+                    style="margin-left:auto;">Undo</button>
             </div>
 
-            <!-- Game Log / Scoresheet -->
+            <!-- Game Log -->
             <div class="game-log">
-                <div class="game-log-title">GAME LOG</div>
-                <div class="game-log-entries">
+                <div class="game-log-title">
+                    <span>PLAY-BY-PLAY</span>
+                    <span class="game-log-count">${this.atBats.length} AB</span>
+                </div>
+                <div class="game-log-entries" id="game-log-entries">
                     ${this.atBats.length === 0
-                        ? '<div class="game-log-empty">No at-bats recorded yet. Tap a result button above to score.</div>'
+                        ? '<div class="game-log-empty">No at-bats recorded yet. Tap a result button to score.</div>'
                         : this.renderGameLog()
                     }
                 </div>
@@ -216,7 +261,6 @@ export class GameLivePage {
     }
 
     renderGameLog() {
-        // Group at-bats by inning + half
         const grouped = {};
         for (const ab of this.atBats) {
             const key = `${ab.inning}-${ab.is_top ? 'top' : 'bot'}`;
@@ -224,23 +268,26 @@ export class GameLivePage {
             grouped[key].abs.push(ab);
         }
 
-        return Object.values(grouped).map(group => {
-            const half = group.isTop ? 'Top' : 'Bot';
+        // Reverse order: most recent inning first
+        const groups = Object.values(grouped).reverse();
+
+        return groups.map(group => {
+            const half = group.isTop ? '\u25B2 Top' : '\u25BC Bot';
             return `
                 <div class="log-inning-header">${half} ${group.inning}</div>
                 ${group.abs.map(ab => {
                     const p = ab.players || {};
-                    const name = p.last_name || '?';
-                    const resultLabel = this.resultLabel(ab.result);
-                    const resultClass = this.resultDotClass(ab.result);
+                    const name = `#${p.jersey_number ?? '?'} ${p.last_name || '?'}`;
+                    const label = this.resultLabel(ab.result);
+                    const cls = this.resultDotClass(ab.result);
                     const extras = [];
-                    if (ab.rbi > 0) extras.push(`${ab.rbi} RBI`);
+                    if (ab.rbi > 0) extras.push(`${ab.rbi}RBI`);
                     if (ab.runner_scored) extras.push('R');
                     return `
                         <div class="log-entry">
-                            <span class="log-result-badge ${resultClass}">${resultLabel}</span>
+                            <span class="log-result-badge ${cls}">${label}</span>
                             <span class="log-player">${this.esc(name)}</span>
-                            ${extras.length > 0 ? `<span class="log-extras">${extras.join(', ')}</span>` : ''}
+                            ${extras.length > 0 ? `<span class="log-extras">${extras.join(' ')}</span>` : ''}
                         </div>
                     `;
                 }).join('')}
@@ -253,32 +300,33 @@ export class GameLivePage {
             return `
                 <div class="empty-state" style="min-height:auto; padding:var(--space-2xl);">
                     <div class="empty-state-icon">&#9918;</div>
-                    <h2>Game: ${this.esc(this.game.teams?.name || 'Us')} vs ${this.esc(this.game.opponent_name)}</h2>
-                    <p style="max-width:400px;">
+                    <h2 style="margin-bottom:8px;">${this.esc(this.game.teams?.name || 'Us')} vs ${this.esc(this.game.opponent_name)}</h2>
+                    <p style="color:var(--text-secondary); max-width:400px; margin-bottom:16px;">
                         ${this.lineup.length === 0
-                            ? 'Step 1: Set your batting lineup. Step 2: Start the game.'
+                            ? 'Step 1: Set your batting lineup. Step 2: Start the game and begin scoring.'
                             : `Lineup set with ${this.lineup.length} players. Ready to play!`
                         }
                     </p>
                     ${this.lineup.length === 0
-                        ? '<button class="btn btn-primary btn-lg" id="setup-lineup-btn-main">Set Lineup to Start</button>'
-                        : '<button class="btn btn-primary btn-lg" id="start-game-btn-main">Start Game</button>'
+                        ? '<button class="btn btn-primary btn-lg" id="setup-lineup-btn-main">Set Lineup</button>'
+                        : `<div class="btn-group"><button class="btn btn-primary btn-lg" id="start-game-btn-main">Start Game</button><button class="btn btn-lg" id="edit-lineup-btn-main">Edit Lineup</button></div>`
                     }
                 </div>
             `;
         }
+        // Final
         return `
             <div class="empty-state" style="min-height:auto; padding:var(--space-2xl);">
                 <div class="empty-state-icon">&#127942;</div>
                 <h2>Final Score</h2>
-                <div style="font-size:var(--font-size-2xl); font-weight:700; font-family:var(--font-mono); margin:var(--space-md) 0;">
+                <div style="font-size:var(--font-size-2xl); font-weight:700; font-family:var(--font-mono); margin:16px 0;">
                     ${this.game.our_score} - ${this.game.opponent_score}
                 </div>
-                <a href="#/games/${this.gameId}/box" class="btn btn-primary">View Full Box Score</a>
+                <a href="#/games/${this.gameId}/box" class="btn btn-primary">View Box Score</a>
             </div>
             ${this.atBats.length > 0 ? `
                 <div class="game-log">
-                    <div class="game-log-title">GAME LOG</div>
+                    <div class="game-log-title"><span>PLAY-BY-PLAY</span><span class="game-log-count">${this.atBats.length} AB</span></div>
                     <div class="game-log-entries">${this.renderGameLog()}</div>
                 </div>
             ` : ''}
@@ -292,74 +340,121 @@ export class GameLivePage {
         return `
             <div class="pitcher-summary">
                 <div class="pitcher-summary-title">PITCHER</div>
-                <div style="font-weight:600; margin-bottom:var(--space-xs);">
-                    ${this.esc(p.first_name || '')} ${this.esc(p.last_name || '')}
+                <div style="font-weight:600; margin-bottom:4px;">
+                    #${p.jersey_number ?? '?'} ${this.esc(p.last_name || '')}
                 </div>
-                <div class="pitcher-stat-row">
-                    <span class="pitcher-stat-label">IP</span>
-                    <span>${this.formatIP(current.outs_recorded)}</span>
+                <div class="pitcher-stat-grid">
+                    <span class="pitcher-stat-label">IP</span><span>${this.formatIP(current.outs_recorded)}</span>
+                    <span class="pitcher-stat-label">K</span><span>${current.strikeouts}</span>
+                    <span class="pitcher-stat-label">BB</span><span>${current.walks}</span>
+                    <span class="pitcher-stat-label">H</span><span>${current.hits_allowed}</span>
+                    ${current.pitches_thrown != null ? `<span class="pitcher-stat-label">PC</span><span>${current.pitches_thrown}</span>` : ''}
                 </div>
-                <div class="pitcher-stat-row">
-                    <span class="pitcher-stat-label">K</span>
-                    <span>${current.strikeouts}</span>
-                </div>
-                <div class="pitcher-stat-row">
-                    <span class="pitcher-stat-label">BB</span>
-                    <span>${current.walks}</span>
-                </div>
-                <div class="pitcher-stat-row">
-                    <span class="pitcher-stat-label">H</span>
-                    <span>${current.hits_allowed}</span>
-                </div>
-                ${current.pitches_thrown != null ? `
-                <div class="pitcher-stat-row">
-                    <span class="pitcher-stat-label">PC</span>
-                    <span>${current.pitches_thrown}</span>
-                </div>` : ''}
             </div>
         `;
     }
 
-    bindEvents() {
-        // Scoreboard buttons
-        document.getElementById('start-game-btn')?.addEventListener('click', () => this.startGame());
-        document.getElementById('end-game-btn')?.addEventListener('click', () => this.endGame());
-        document.getElementById('setup-lineup-btn')?.addEventListener('click', () => this.showLineupSetup());
-        document.getElementById('edit-lineup-btn')?.addEventListener('click', () => this.showLineupSetup());
+    buildLinescore() {
+        const g = this.game;
+        const maxInning = Math.max(g.current_inning, ...this.atBats.map(ab => ab.inning), g.innings_count || 9);
+        const totalInnings = Math.max(maxInning, g.innings_count || 9);
 
-        // Main content buttons
-        document.getElementById('setup-lineup-btn-side')?.addEventListener('click', () => this.showLineupSetup());
-        document.getElementById('setup-lineup-btn-main')?.addEventListener('click', () => this.showLineupSetup());
-        document.getElementById('start-game-btn-main')?.addEventListener('click', () => this.startGame());
+        const innings = [];
+        let homeH = 0, awayH = 0, homeE = 0, awayE = 0;
+
+        for (let i = 1; i <= totalInnings; i++) {
+            const innABs = this.atBats.filter(ab => ab.inning === i);
+            let awayRuns = null, homeRuns = null;
+
+            if (i < g.current_inning || (i === g.current_inning && !g.is_top_of_inning) || g.status === 'final') {
+                // Top of this inning is complete
+                const topABs = innABs.filter(ab => ab.is_top);
+                awayRuns = topABs.reduce((s, ab) => s + (ab.runs_on_play != null ? ab.runs_on_play : (ab.rbi || 0)), 0);
+                topABs.forEach(ab => {
+                    if (this.app.api.isHit(ab.result)) awayH++;
+                    if (ab.result === 'reached_on_error') awayE++;
+                });
+            }
+
+            if (i < g.current_inning || g.status === 'final') {
+                // Bottom of this inning is complete
+                const botABs = innABs.filter(ab => !ab.is_top);
+                homeRuns = botABs.reduce((s, ab) => s + (ab.runs_on_play != null ? ab.runs_on_play : (ab.rbi || 0)), 0);
+                botABs.forEach(ab => {
+                    if (this.app.api.isHit(ab.result)) homeH++;
+                    if (ab.result === 'reached_on_error') homeE++;
+                });
+            }
+
+            // If we're visiting, swap home/away
+            if (!g.is_home) {
+                innings.push({ num: i, away: awayRuns, home: homeRuns });
+            } else {
+                innings.push({ num: i, away: awayRuns, home: homeRuns });
+            }
+        }
+
+        // Count hits/errors for current in-progress half inning
+        const currentABs = this.atBats.filter(ab => ab.inning === g.current_inning);
+        currentABs.forEach(ab => {
+            if (ab.is_top) {
+                if (this.app.api.isHit(ab.result)) awayH++;
+                if (ab.result === 'reached_on_error') awayE++;
+            } else {
+                if (this.app.api.isHit(ab.result)) homeH++;
+                if (ab.result === 'reached_on_error') homeE++;
+            }
+        });
+
+        return { innings, homeH, awayH, homeE, awayE };
+    }
+
+    bindEvents() {
+        const $ = id => document.getElementById(id);
+
+        // Game control buttons
+        $('start-game-btn')?.addEventListener('click', () => this.startGame());
+        $('start-game-btn-main')?.addEventListener('click', () => this.startGame());
+        $('end-game-btn')?.addEventListener('click', () => this.endGame());
+        $('setup-lineup-btn')?.addEventListener('click', () => this.showLineupSetup());
+        $('setup-lineup-btn-side')?.addEventListener('click', () => this.showLineupSetup());
+        $('setup-lineup-btn-main')?.addEventListener('click', () => this.showLineupSetup());
+        $('edit-lineup-btn')?.addEventListener('click', () => this.showLineupSetup());
+        $('edit-lineup-btn-main')?.addEventListener('click', () => this.showLineupSetup());
 
         // Result buttons
         document.querySelectorAll('[data-result]').forEach(btn => {
             btn.addEventListener('click', () => this.recordResult(btn.dataset.result));
         });
 
+        // Runs on play buttons
+        document.querySelectorAll('[data-runs]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.selectedRunsOnPlay = parseInt(btn.dataset.runs);
+                document.querySelectorAll('[data-runs]').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+            });
+        });
+
         // RBI buttons
         document.querySelectorAll('[data-rbi]').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.selectedRBI = parseInt(btn.dataset.rbi);
-                document.querySelectorAll('[data-rbi]').forEach(b => b.classList.remove('selected'));
+                document.querySelectorAll('.rbi-select').forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
             });
         });
 
         // Scored toggle
-        document.getElementById('scored-yes')?.addEventListener('click', () => {
-            this.selectedScored = true;
-            document.getElementById('scored-yes').classList.add('btn-primary');
-            document.getElementById('scored-no').classList.remove('btn-primary');
-        });
-        document.getElementById('scored-no')?.addEventListener('click', () => {
-            this.selectedScored = false;
-            document.getElementById('scored-no').classList.add('btn-primary');
-            document.getElementById('scored-yes').classList.remove('btn-primary');
+        $('scored-toggle')?.addEventListener('click', () => {
+            this.batterScored = !this.batterScored;
+            const btn = $('scored-toggle');
+            btn.textContent = this.batterScored ? 'YES' : 'NO';
+            btn.classList.toggle('btn-primary', this.batterScored);
         });
 
         // Undo
-        document.getElementById('undo-btn')?.addEventListener('click', () => this.undoLast());
+        $('undo-btn')?.addEventListener('click', () => this.undoLast());
 
         // Lineup click to change batter
         document.querySelectorAll('.lineup-item[data-index]').forEach(item => {
@@ -369,30 +464,42 @@ export class GameLivePage {
                 this.renderGame(document.getElementById('app'));
             });
         });
+
+        // Auto-scroll game log to top (most recent)
+        const logEl = document.getElementById('game-log-entries');
+        if (logEl) logEl.scrollTop = 0;
     }
 
     async showLineupSetup() {
+        console.log('[Diamond Stats] showLineupSetup called, teamId:', this.game.team_id);
+
         let players;
         try {
             players = await this.app.api.listPlayers(this.game.team_id);
+            console.log('[Diamond Stats] listPlayers returned:', players.length, 'players');
         } catch (err) {
-            this.app.showToast(err.message, 'error');
+            console.error('[Diamond Stats] listPlayers failed:', err);
+            alert('Error loading players: ' + err.message);
             return;
         }
 
-        if (players.length === 0) {
-            this.app.showToast('No players on the roster. Add players to the team first.', 'error');
-            window.location.hash = `#/teams/${this.game.team_id}`;
+        if (!players || players.length === 0) {
+            const goToRoster = confirm(
+                'No players on the roster yet.\n\nGo to the team page to add players first?'
+            );
+            if (goToRoster) {
+                window.location.hash = `#/teams/${this.game.team_id}`;
+            }
             return;
         }
 
-        const positions = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'];
+        const positions = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH', 'EH'];
         const existingMap = {};
         for (const entry of this.lineup) {
             existingMap[entry.batting_order] = { playerId: entry.player_id, position: entry.position };
         }
 
-        const slotCount = Math.max(9, players.length);
+        const slotCount = Math.max(9, this.lineup.length, Math.min(players.length, 12));
         const slots = [];
         for (let i = 1; i <= slotCount; i++) {
             slots.push({
@@ -402,35 +509,35 @@ export class GameLivePage {
             });
         }
 
-        const container = document.getElementById('app');
+        // Create modal
         const modalDiv = document.createElement('div');
         modalDiv.id = 'lineup-modal';
         modalDiv.innerHTML = `
             <div class="modal-overlay" id="lineup-overlay">
-                <div class="modal" style="max-width:700px; max-height:90vh;">
+                <div class="modal" style="max-width:720px; max-height:90vh;">
                     <div class="modal-header">
                         <h2 class="modal-title">Set Batting Lineup</h2>
                         <button class="modal-close" id="lineup-close">&times;</button>
                     </div>
-                    <div class="modal-body" style="max-height:60vh; overflow-y:auto;">
-                        <p style="color:var(--text-secondary); font-size:var(--font-size-sm); margin-bottom:var(--space-md);">
-                            Select players for each batting order slot and assign their field position.
+                    <div class="modal-body" style="max-height:60vh; overflow-y:auto; padding:12px 24px;">
+                        <p style="color:var(--text-secondary); font-size:13px; margin-bottom:12px;">
+                            Select a player for each batting order slot. Position auto-fills from their profile.
                         </p>
                         <table class="stat-table" style="font-family:var(--font-body);">
                             <thead>
                                 <tr>
-                                    <th style="text-align:center; width:40px;">#</th>
+                                    <th style="text-align:center; width:36px;">#</th>
                                     <th style="text-align:left;">Player</th>
-                                    <th style="text-align:left; width:100px;">Position</th>
+                                    <th style="text-align:left; width:90px;">Pos</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${slots.map(s => `
                                     <tr>
-                                        <td style="text-align:center; font-weight:600;">${s.order}</td>
+                                        <td style="text-align:center; font-weight:700; font-family:var(--font-mono);">${s.order}</td>
                                         <td style="text-align:left;">
-                                            <select class="form-select lineup-player-select" data-order="${s.order}" style="min-height:40px;">
-                                                <option value="">-- Select Player --</option>
+                                            <select class="form-select lineup-player-select" data-order="${s.order}" style="min-height:40px; width:100%;">
+                                                <option value="">-- empty --</option>
                                                 ${players.map(p => `
                                                     <option value="${p.id}" ${s.playerId === p.id ? 'selected' : ''}>
                                                         #${p.jersey_number ?? '?'} ${p.first_name} ${p.last_name} (${p.primary_position || '?'})
@@ -439,7 +546,7 @@ export class GameLivePage {
                                             </select>
                                         </td>
                                         <td style="text-align:left;">
-                                            <select class="form-select lineup-pos-select" data-order="${s.order}" style="min-height:40px;">
+                                            <select class="form-select lineup-pos-select" data-order="${s.order}" style="min-height:40px; width:100%;">
                                                 ${positions.map(pos => `
                                                     <option value="${pos}" ${s.position === pos ? 'selected' : ''}>${pos}</option>
                                                 `).join('')}
@@ -457,17 +564,16 @@ export class GameLivePage {
                 </div>
             </div>
         `;
-        container.appendChild(modalDiv);
 
-        // Auto-set position when player is selected based on their primary position
+        document.getElementById('app').appendChild(modalDiv);
+
+        // Auto-set position when player selected
         modalDiv.querySelectorAll('.lineup-player-select').forEach(sel => {
             sel.addEventListener('change', () => {
-                const playerId = sel.value;
-                if (!playerId) return;
-                const player = players.find(p => p.id === playerId);
+                if (!sel.value) return;
+                const player = players.find(p => p.id === sel.value);
                 if (player?.primary_position) {
-                    const order = sel.dataset.order;
-                    const posSelect = modalDiv.querySelector(`.lineup-pos-select[data-order="${order}"]`);
+                    const posSelect = modalDiv.querySelector(`.lineup-pos-select[data-order="${sel.dataset.order}"]`);
                     if (posSelect && positions.includes(player.primary_position)) {
                         posSelect.value = player.primary_position;
                     }
@@ -478,28 +584,25 @@ export class GameLivePage {
         const close = () => modalDiv.remove();
         document.getElementById('lineup-close').addEventListener('click', close);
         document.getElementById('lineup-cancel').addEventListener('click', close);
-        document.getElementById('lineup-overlay').addEventListener('click', (e) => {
+        document.getElementById('lineup-overlay').addEventListener('click', e => {
             if (e.target.id === 'lineup-overlay') close();
         });
 
         document.getElementById('lineup-save').addEventListener('click', async () => {
             const entries = [];
             const usedPlayers = new Set();
-            const selects = modalDiv.querySelectorAll('.lineup-player-select');
 
-            for (const sel of selects) {
-                const playerId = sel.value;
-                if (!playerId) continue;
-                if (usedPlayers.has(playerId)) {
-                    this.app.showToast('Each player can only appear once in the lineup', 'error');
+            for (const sel of modalDiv.querySelectorAll('.lineup-player-select')) {
+                if (!sel.value) continue;
+                if (usedPlayers.has(sel.value)) {
+                    alert('Each player can only appear once in the lineup.');
                     return;
                 }
-                usedPlayers.add(playerId);
-
+                usedPlayers.add(sel.value);
                 const order = parseInt(sel.dataset.order);
                 const posSelect = modalDiv.querySelector(`.lineup-pos-select[data-order="${order}"]`);
                 entries.push({
-                    playerId,
+                    playerId: sel.value,
                     battingOrder: order,
                     position: posSelect.value,
                     isStarter: true,
@@ -507,74 +610,82 @@ export class GameLivePage {
             }
 
             if (entries.length === 0) {
-                this.app.showToast('Select at least one player for the lineup', 'error');
+                alert('Select at least one player for the lineup.');
                 return;
             }
 
-            try {
-                const saveBtn = document.getElementById('lineup-save');
-                saveBtn.disabled = true;
-                saveBtn.textContent = 'Saving...';
+            const saveBtn = document.getElementById('lineup-save');
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
 
+            try {
                 const newLineup = await this.app.api.setLineup(this.gameId, entries);
                 this.lineup = newLineup;
                 this.currentBatterIndex = 0;
                 close();
-                this.app.showToast(`Lineup set (${entries.length} players)`, 'success');
+                this.app.showToast(`Lineup saved (${entries.length} players)`, 'success');
                 this.renderGame(document.getElementById('app'));
             } catch (err) {
-                this.app.showToast(err.message, 'error');
-                const saveBtn = document.getElementById('lineup-save');
-                if (saveBtn) {
-                    saveBtn.disabled = false;
-                    saveBtn.textContent = 'Save Lineup';
-                }
+                console.error('[Diamond Stats] setLineup failed:', err);
+                alert('Failed to save lineup: ' + err.message);
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save Lineup';
             }
         });
     }
 
     async startGame() {
-        // Require lineup first
         if (this.lineup.length === 0) {
-            this.app.showToast('Set your batting lineup before starting the game', 'error');
+            this.app.showToast('Set your batting lineup first', 'error');
             this.showLineupSetup();
             return;
         }
-
         try {
             const game = await this.app.api.startGame(this.gameId);
             this.game = game;
             this.app.showToast('Game started! Tap a result for each at-bat.', 'success');
             this.renderGame(document.getElementById('app'));
         } catch (err) {
-            this.app.showToast(err.message, 'error');
+            alert('Failed to start game: ' + err.message);
         }
     }
 
     async endGame() {
-        if (!confirm('End this game? This marks it as final.')) return;
+        if (!confirm('End this game and mark it as final?')) return;
         try {
             const game = await this.app.api.endGame(this.gameId);
             this.game = game;
             this.renderGame(document.getElementById('app'));
         } catch (err) {
-            this.app.showToast(err.message, 'error');
+            alert('Failed to end game: ' + err.message);
         }
     }
 
     async recordResult(result) {
         const batter = this.lineup[this.currentBatterIndex];
         if (!batter) {
-            this.app.showToast('No batter selected — set lineup first', 'error');
+            alert('No batter selected. Set your lineup first.');
             return;
         }
 
         const playerId = batter.players?.id || batter.player_id;
+
+        // Auto-set minimums for HR
+        let runs = this.selectedRunsOnPlay;
+        let rbi = this.selectedRBI;
+        let scored = this.batterScored;
+        if (result === 'home_run') {
+            runs = Math.max(runs, 1);
+            rbi = Math.max(rbi, 1);
+            scored = true;
+        }
+
         const data = {
             playerId,
             result,
-            rbi: this.selectedRBI,
-            runnerScored: this.selectedScored,
+            rbi,
+            runsOnPlay: runs,
+            runnerScored: scored,
         };
 
         try {
@@ -584,53 +695,53 @@ export class GameLivePage {
                 this.game = response.gameState;
             } else {
                 await this.app.sync.enqueue('record_at_bat', {
-                    gameId: this.gameId,
-                    playerId,
+                    gameId: this.gameId, playerId,
                     inning: this.game.current_inning,
                     isTop: this.game.is_top_of_inning,
-                    result,
-                    rbi: this.selectedRBI,
-                    runnerScored: this.selectedScored,
+                    result, rbi, runsOnPlay: runs, runnerScored: scored,
                 });
                 this.app.showToast('At-bat queued (offline)', 'info');
             }
 
+            // Reset extras and advance batter
             this.selectedRBI = 0;
-            this.selectedScored = false;
+            this.selectedRunsOnPlay = 0;
+            this.batterScored = false;
             this.currentBatterIndex = (this.currentBatterIndex + 1) % Math.max(1, this.lineup.length);
 
             this.renderGame(document.getElementById('app'));
         } catch (err) {
-            this.app.showToast(err.message, 'error');
+            alert('Error recording at-bat: ' + err.message);
         }
     }
 
     async undoLast() {
         const lastAB = this.atBats[this.atBats.length - 1];
         if (!lastAB) return;
-
         if (!confirm('Undo the last at-bat?')) return;
 
         try {
             const updatedGame = await this.app.api.undoAtBat(this.gameId, lastAB.id);
             this.atBats.pop();
             this.game = updatedGame;
-
             this.currentBatterIndex = (this.currentBatterIndex - 1 + this.lineup.length) % Math.max(1, this.lineup.length);
-
             this.renderGame(document.getElementById('app'));
             this.app.showToast('At-bat undone', 'info');
         } catch (err) {
-            this.app.showToast(err.message, 'error');
+            alert('Error undoing at-bat: ' + err.message);
         }
     }
 
-    // Quick stat line for lineup sidebar (e.g., "1-3, HR, 2 RBI")
     quickBatterLine(playerABs) {
         if (playerABs.length === 0) return '';
         const hits = playerABs.filter(ab => ['single', 'double', 'triple', 'home_run'].includes(ab.result));
         const abs = playerABs.filter(ab => !['walk', 'intentional_walk', 'hit_by_pitch', 'sacrifice_fly', 'sacrifice_bunt'].includes(ab.result));
-        return `${hits.length}-${abs.length}`;
+        const extras = [];
+        const hr = playerABs.filter(ab => ab.result === 'home_run').length;
+        const rbi = playerABs.reduce((s, ab) => s + (ab.rbi || 0), 0);
+        if (hr > 0) extras.push(`${hr}HR`);
+        if (rbi > 0) extras.push(`${rbi}RBI`);
+        return `${hits.length}-${abs.length}${extras.length ? ', ' + extras.join(', ') : ''}`;
     }
 
     resultLabel(result) {
@@ -647,8 +758,7 @@ export class GameLivePage {
     }
 
     resultDotClass(result) {
-        const hits = ['single', 'double', 'triple'];
-        if (hits.includes(result)) return 'hit';
+        if (['single', 'double', 'triple'].includes(result)) return 'hit';
         if (result === 'home_run') return 'hr';
         if (['walk', 'hit_by_pitch', 'intentional_walk'].includes(result)) return 'walk';
         if (['strikeout_swinging', 'strikeout_looking'].includes(result)) return 'k';
@@ -666,7 +776,5 @@ export class GameLivePage {
         return div.innerHTML;
     }
 
-    destroy() {
-        // Cleanup if needed
-    }
+    destroy() {}
 }

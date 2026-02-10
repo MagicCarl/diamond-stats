@@ -66,7 +66,10 @@ export class Router {
         this.currentPage = new PageClass(this.app, params);
         const container = document.getElementById('app');
         container.innerHTML = '';
-        this.currentPage.render(container);
+        this.currentPage.render(container).catch(err => {
+            console.error('Page render failed:', err);
+            container.innerHTML = `<div class="empty-state"><p style="color:var(--offline);">Failed to load page: ${err.message}</p><a href="#/dashboard" class="btn btn-primary" style="margin-top:var(--space-md);">Back to Dashboard</a></div>`;
+        });
     }
 
     matchRoute(hash) {

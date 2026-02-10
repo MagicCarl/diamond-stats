@@ -69,7 +69,7 @@ export class API {
         if (error) throw new Error(error.message);
 
         const [playersRes, seasonsRes, gamesRes] = await Promise.all([
-            this.db.from('players').select('*').eq('team_id', id).eq('is_active', true).order('jersey_number'),
+            this.db.from('players').select('*').eq('team_id', id).neq('is_active', false).order('jersey_number'),
             this.db.from('seasons').select('*').eq('team_id', id).order('created_at', { ascending: false }),
             this.db.from('games').select('id', { count: 'exact', head: true }).eq('team_id', id),
         ]);
@@ -104,10 +104,10 @@ export class API {
             .from('players')
             .select('*')
             .eq('team_id', teamId)
-            .eq('is_active', true)
+            .neq('is_active', false)
             .order('jersey_number');
         if (error) throw new Error(error.message);
-        return data;
+        return data || [];
     }
 
     async createPlayer(teamId, input) {
@@ -295,6 +295,7 @@ export class API {
             .select('id', { count: 'exact', head: true })
             .eq('game_id', gameId);
 
+        const runsOnPlay = input.runsOnPlay != null ? input.runsOnPlay : (input.rbi || 0);
         const row = {
             game_id: gameId,
             player_id: input.playerId,
@@ -304,6 +305,7 @@ export class API {
             result: input.result,
             rbi: input.rbi || 0,
             runner_scored: input.runnerScored || false,
+            runs_on_play: runsOnPlay,
         };
 
         const { data: atBat, error: abErr } = await this.db
@@ -318,13 +320,9 @@ export class API {
         let newOuts = game.outs_in_current_inning + outsProduced;
         let newInning = game.current_inning;
         let newIsTop = game.is_top_of_inning;
-        let newOurScore = game.our_score + (input.rbi || 0);
+        // Score increments by runs scored on this play (separate from RBI for stats)
+        let newOurScore = game.our_score + (input.runsOnPlay || input.rbi || 0);
         let newOppScore = game.opponent_score;
-
-        // Runner scored adds to our score
-        if (input.runnerScored) {
-            newOurScore += 1;
-        }
 
         // Check for inning change (3 outs)
         if (newOuts >= 3) {
@@ -378,11 +376,9 @@ export class API {
         let newOuts = game.outs_in_current_inning - outsProduced;
         let newInning = game.current_inning;
         let newIsTop = game.is_top_of_inning;
-        let newOurScore = game.our_score - (atBat.rbi || 0);
-
-        if (atBat.runner_scored) {
-            newOurScore -= 1;
-        }
+        // Reverse runs scored on this play
+        const runsToReverse = atBat.runs_on_play != null ? atBat.runs_on_play : (atBat.rbi || 0);
+        let newOurScore = game.our_score - runsToReverse;
 
         // If we crossed an inning boundary, reverse it
         if (newOuts < 0) {
@@ -608,8 +604,8 @@ export class API {
         const innings = [];
         for (let i = 1; i <= maxInning; i++) {
             const innABs = atBats.filter(ab => ab.inning === i);
-            const ourRuns = innABs.filter(ab => ab.is_top === !game.is_home).reduce((s, ab) => s + (ab.rbi || 0) + (ab.runner_scored ? 1 : 0), 0);
-            const oppRuns = innABs.filter(ab => ab.is_top === game.is_home).reduce((s, ab) => s + (ab.rbi || 0) + (ab.runner_scored ? 1 : 0), 0);
+            const ourRuns = innABs.filter(ab => ab.is_top === !game.is_home).reduce((s, ab) => s + (ab.runs_on_play != null ? ab.runs_on_play : (ab.rbi || 0)), 0);
+            const oppRuns = innABs.filter(ab => ab.is_top === game.is_home).reduce((s, ab) => s + (ab.runs_on_play != null ? ab.runs_on_play : (ab.rbi || 0)), 0);
             innings.push({ inning: i, ourRuns, opponentRuns: oppRuns });
         }
 
@@ -618,13 +614,11 @@ export class API {
             const player = entry.players;
             const pABs = atBats.filter(ab => ab.player_id === (player?.id || entry.player_id));
             const stats = this.calcBattingStats(pABs);
+            // Override runs with runner_scored count for game box score
+            stats.r = pABs.filter(ab => ab.runner_scored).length;
             return {
                 playerName: player ? `${player.first_name} ${player.last_name}` : '?',
-                stats: {
-                    ...stats,
-                    r: pABs.filter(ab => ab.runner_scored).length,
-                    avgDisplay: stats.ab > 0 ? stats.avg.toFixed(3).replace(/^0/, '') : '---',
-                },
+                stats,
             };
         });
 
@@ -646,6 +640,8 @@ export class API {
                     er: app.earned_runs,
                     bb: app.walks,
                     k: app.strikeouts,
+                    hr: app.home_runs_allowed || 0,
+                    pc: app.pitches_thrown || null,
                     eraDisplay: era != null ? era.toFixed(2) : '---',
                 },
             };

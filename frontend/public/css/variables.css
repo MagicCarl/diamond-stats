@@ -19,12 +19,12 @@
     --accent-active: #388BFD;
 
     /* Scorebook Colors */
-    --hit: #2EA043;
-    --hit-bg: rgba(46, 160, 67, 0.15);
-    --hr: #DA3633;
-    --hr-bg: rgba(218, 54, 51, 0.15);
-    --walk: #8B949E;
-    --walk-bg: rgba(139, 148, 158, 0.12);
+    --hit: #3FB950;
+    --hit-bg: rgba(63, 185, 80, 0.18);
+    --hr: #E3B341;
+    --hr-bg: rgba(227, 179, 65, 0.18);
+    --walk: #58A6FF;
+    --walk-bg: rgba(88, 166, 255, 0.12);
     --out: #484F58;
     --out-bg: rgba(72, 79, 88, 0.15);
     --error-play: #F0883E;
